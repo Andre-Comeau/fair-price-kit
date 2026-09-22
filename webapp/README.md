@@ -88,6 +88,10 @@ If a draft is still cut off (a very long requirement, a long reply chain), the p
 a red "Cut off before finishing" banner, from the API's own `stop_reason` field, not a guess based on
 token counts — instead of a truncated document being mistaken for a complete one.
 
+The request itself is given `engine.REQUEST_TIMEOUT_SECONDS` (120s) to finish. Generating up to 8000
+output tokens can genuinely take a while, especially on a long reply chain; a request that's still
+running past that comes back as a clear "timed out" error rather than an unlabelled failure.
+
 ## The citation check is a safety net, not a guarantee
 `validate_citations()` in `engine.py` flags any all-caps hyphenated token that looks like a register
 id (`TBS-DMP-4.3.1`, `CANADABUYS-AWARD-DATA`) but isn't actually one. It's a heuristic on shape, not

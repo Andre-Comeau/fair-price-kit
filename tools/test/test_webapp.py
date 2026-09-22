@@ -225,6 +225,27 @@ def test_draft_with_llm_reports_not_truncated_on_a_normal_finish(monkeypatch):
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
 
+def test_draft_with_llm_turns_a_bare_timeout_into_a_clear_draft_error(monkeypatch):
+    # Regression test for a real 500 seen in live testing: a bare TimeoutError from resp.read() (a
+    # timeout mid-response, not at connection time) wasn't caught by the HTTPError/URLError clauses
+    # and fell through to server.py's generic catch-all as an unlabelled internal error.
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-fake-for-testing-only")
+
+    def fake_urlopen(req, timeout=60):
+        raise TimeoutError("simulated read timeout")
+
+    original_urlopen = engine.urllib.request.urlopen
+    engine.urllib.request.urlopen = fake_urlopen
+    try:
+        engine.draft_with_llm({"organization": "test"})
+        assert False, "expected DraftError, not an uncaught TimeoutError"
+    except engine.DraftError as e:
+        assert "timed out" in str(e)
+    finally:
+        engine.urllib.request.urlopen = original_urlopen
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+
 def test_max_output_tokens_has_headroom_for_the_full_template():
     # Regression guard for a real truncation seen in live testing: the old cap (4000) was fully used
     # and cut the draft off mid-table in section 3 of 7, well before the conclusion, documentation

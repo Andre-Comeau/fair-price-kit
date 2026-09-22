@@ -118,6 +118,12 @@ class DraftError(Exception):
 # ceiling check) next to the cost of a silently truncated draft someone might not notice is cut off.
 MAX_OUTPUT_TOKENS = 8000
 
+# 8000 output tokens can legitimately take a while to generate, especially on a reply that resends a
+# long conversation; 60s (the old value) was tight enough to plausibly explain a live 500 seen in
+# testing (see the TimeoutError handling below). Generous, not unlimited -- a genuinely hung request
+# still fails clearly rather than blocking the server thread forever.
+REQUEST_TIMEOUT_SECONDS = 120
+
 
 def api_key_configured() -> bool:
     """Whether ANTHROPIC_API_KEY is set in this environment -- never returns or logs the value
@@ -242,12 +248,23 @@ def draft_with_llm(inputs: dict = None, messages: list = None, model: str = "cla
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_SECONDS) as resp:
             data = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         raise DraftError(f"Anthropic API error {e.code}: {e.read().decode('utf-8', 'replace')[:500]}") from None
     except urllib.error.URLError as e:
         raise DraftError(f"could not reach the Anthropic API: {e.reason}") from None
+    except TimeoutError:
+        # A timeout mid-response (resp.read() blocking on a still-generating body, more likely now
+        # that MAX_OUTPUT_TOKENS is 8000) raises a bare TimeoutError, not urllib.error.URLError --
+        # urllib only wraps connection-phase failures, not a read timing out once the response has
+        # started. Uncaught, this fell through to server.py's generic catch-all as an unlabelled 500;
+        # this makes it the same kind of clear, expected error as the two cases above.
+        raise DraftError(
+            f"the request to the Anthropic API timed out after {REQUEST_TIMEOUT_SECONDS}s -- the "
+            "draft may have needed more time to finish than that. Try again; if it keeps happening, "
+            "the input or conversation may be long enough that it's worth shortening."
+        ) from None
     try:
         draft_text = "".join(block["text"] for block in data["content"] if block.get("type") == "text")
     except (KeyError, TypeError):
