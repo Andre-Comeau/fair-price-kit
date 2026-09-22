@@ -58,6 +58,9 @@ def main(argv):
         print(__doc__)
         return 2
     src, dst = Path(args[0]), Path(args[1])
+    if not src.is_file():
+        print(f"error: not found: {src}", file=sys.stderr)
+        return 2
     text = src.read_text(encoding="utf-8", errors="replace")
 
     marks = lines_with(MARKINGS, text)

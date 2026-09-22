@@ -41,7 +41,13 @@ def main(argv):
     (root / "private" / "LOG.md").write_text(
         "# Private ingestion log (never share)\n\n| time | doc (private name) | step | note |\n|---|---|---|---|\n",
         encoding="utf-8")
-    print(f"created {root}/ with raw text private sanitized kb")
+    (root / "kb" / "gate-allow.txt").write_text(
+        "# Reviewed exceptions for tools/scan_sensitive.py (read automatically by tools/build_index.py).\n"
+        "# Only a human adds lines here, after looking at the match. A plain line is a case-insensitive substring of the\n"
+        "# MATCHED text; a line starting 're:' is a regex. Only matching text is silenced; the patterns stay on.\n"
+        "# Add a short comment above each entry saying why it is safe (e.g. a public body's name).\n",
+        encoding="utf-8")
+    print(f"created {root}/ with raw text private sanitized kb (kb/gate-allow.txt is the reviewed-exceptions list)")
     return 0
 
 

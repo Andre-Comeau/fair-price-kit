@@ -64,6 +64,19 @@ def main():
     spans = [(s[2], s[3]) for s in secs]
     if spans[0][0] != 0 or spans[-1][1] != len(DOC) or any(a[1] != b[0] for a, b in zip(spans, spans[1:])):
         bad.append(("sections do not tile the document", spans))
+    # automatic mode choice (chunk_doc.choose_sections)
+    import chunk_doc
+    _, m = chunk_doc.choose_sections(DOC)
+    if m != "page-headers":
+        bad.append(("auto picks page headers for a header-style spec", m))
+    heading_doc = ("<!-- page 1 -->\nSECTION 03 30 00 - CONCRETE\ntext\n<!-- page 2 -->\nSECTION 05 12 00 - STEEL\ntext\n"
+                   "<!-- page 3 -->\nSECTION 07 10 00 - ROOFING\ntext\n")
+    _, m = chunk_doc.choose_sections(heading_doc)
+    if m != "headings":
+        bad.append(("auto picks headings for a heading-style spec", m))
+    _, m = chunk_doc.choose_sections("just text, no structure at all")
+    if m != "headings":
+        bad.append(("auto falls back to headings", m))
     # no header at all -> one 'front matter' style section, no crash
     if spec_sections_from_headers("just text\nno markers") != [(None, "", 0, len("just text\nno markers"))]:
         bad.append(("no page markers", None))

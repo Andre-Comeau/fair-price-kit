@@ -93,6 +93,22 @@ def spec_sections(text):
     return out
 
 
+def choose_sections(text, mode="auto"):
+    """Return (sections, mode_used). auto: use 'SECTION nn nn nn' heading lines when they find at least as many
+    sections as the running page headers do; use the page headers when they clearly win (>= 3 sections and more than
+    the headings found). Real specs come in both styles (see ingestion/TRIAL-colonel-by-drive.md)."""
+    if mode == "headings":
+        return spec_sections(text), "headings"
+    if mode == "page-headers":
+        return spec_sections_from_headers(text), "page-headers"
+    by_heading, by_header = spec_sections(text), spec_sections_from_headers(text)
+    n_heading = sum(1 for s in by_heading if s[0])
+    n_header = sum(1 for s in by_header if s[0])
+    if n_header >= 3 and n_header > n_heading:
+        return by_header, "page-headers"
+    return by_heading, "headings"
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("src")
@@ -106,12 +122,17 @@ def main():
     ap.add_argument("--divisions", help="JSON file {\"edition\": str, \"divisions\": {\"03\": \"Concrete\", ...}}; "
                     "default: <out>/../masterformat.json if present. Division names are NEVER assumed: the MasterFormat "
                     "edition is project dependent, so take them from the spec's own table of contents.")
-    ap.add_argument("--sections-from", choices=["headings", "page-headers"], default="headings",
-                    help="spec only. headings: lines 'SECTION nn nn nn - TITLE' (default). page-headers: group pages by the "
-                         "'Section nn nn nn' running header at the top of each page (see tools/spec_headers.py)")
+    ap.add_argument("--sections-from", choices=["auto", "headings", "page-headers"], default="auto",
+                    help="spec only. auto (default): pick per document. headings: lines 'SECTION nn nn nn - TITLE'. "
+                         "page-headers: group pages by the 'Section nn nn nn' running header at the top of each page "
+                         "(see tools/spec_headers.py)")
     a = ap.parse_args()
 
-    text = Path(a.src).read_text(encoding="utf-8")
+    src = Path(a.src)
+    if not src.is_file():
+        print(f"error: not found: {src}", file=sys.stderr)
+        return 2
+    text = src.read_text(encoding="utf-8", errors="replace")
     text = re.sub(r"\A<!--.*?-->\s*", "", text, count=1, flags=re.S) if text.startswith("<!-- converted-by") else text
     # optional metadata header at the top of the sanitized document (`---` block of `key: json` lines)
     header, text = parse_fm(text)
@@ -137,7 +158,8 @@ def main():
 
     pieces = []  # (suffix, title, section, division, start_page, end_page, body)
     if a.type == "spec":
-        sections = spec_sections_from_headers(text) if a.sections_from == "page-headers" else spec_sections(text)
+        sections, mode_used = choose_sections(text, a.sections_from)
+        print(f"sections: {sum(1 for s in sections if s[0])} found using {mode_used}")
         for no, title, s, e in sections:
             seg = text[s:e]
             sp = page_at(text, s)
@@ -221,6 +243,10 @@ def main():
         fm = {k: v for k, v in fm.items() if v is not None}
         (out / f"{cid}.md").write_text(dump_fm(fm) + "\n" + body + "\n", encoding="utf-8")
         written += 1
+    if written == 0:
+        print("error: no chunks written: the input has no text. Check the conversion step (a failed or empty "
+              "extraction would otherwise go unnoticed).", file=sys.stderr)
+        return 1
     print(f"wrote {written} chunk(s) to {out} (sanitization: {status})")
     if not a.approved:
         print("chunks are 'pending': re-run with --approved after human review, or build_index.py will skip them.")

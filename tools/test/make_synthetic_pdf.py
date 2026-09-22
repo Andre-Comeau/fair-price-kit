@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Write a small SYNTHETIC text-layer PDF (all data invented) for pipeline tests.
 
-Usage: python tools/test/make_synthetic_pdf.py OUT.pdf [--marked] [--blank-page]
---marked      adds a "Protected B" line (to test the classification stop)
---blank-page  adds a page with no text (to test low-text detection)
+Usage: python tools/test/make_synthetic_pdf.py OUT.pdf [--marked] [--blank-page] [--header-style]
+--marked        adds a "Protected B" line (to test the classification stop)
+--blank-page    adds a page with no text (to test low-text detection)
+--header-style  sections identified only by a running page header ("Section nn nn nn"), no SECTION heading lines
 """
 import sys
 
@@ -15,6 +16,21 @@ PAGES = [
      "PART 2 - PRODUCTS", "2.1 Concrete: 32 MPa at 28 days.", "PART 3 - EXECUTION", "3.1 Place concrete in one pour."],
     ["SECTION 05 12 00 - STRUCTURAL STEEL FRAMING", "PART 1 - GENERAL", "1.1 Summary: supply and erect structural steel.",
      "Unit price allowance: 4,250.00 per tonne (synthetic).", "PART 2 - PRODUCTS", "2.1 Steel: CSA G40.21 350W."],
+]
+
+
+# Header-style spec (invented): every page starts with a 3-line running header; no "SECTION nn nn nn" heading lines.
+PAGES_HEADER_STYLE = [
+    ["CONSTRUCTION SPECIFICATIONS FOR EXAMPLE WALL", "Prepared by: A. Person"],
+    ["Example Wall     TABLE OF CONTENTS          Section 00 01 10", "Rehab (Phase 2)                    Page 1 of 1",
+     "Project #: 000-00                 March, 2025", "00 01 10  Table of contents"],
+    ["Example Wall     CAST-IN-PLACE CONCRETE     Section 03 30 00", "Rehab (Phase 2)                    Page 1 of 2",
+     "Project #: 000-00                 March, 2025", "1.1 Summary: concrete work.", "See Section 05 12 00 for steel.",
+     "Refer to CO-007 for the revised slab."],
+    ["Example Wall     CAST-IN-PLACE CONCRETE     Section 03 30 00", "Rehab (Phase 2)                    Page 2 of 2",
+     "Project #: 000-00                 March, 2025", "2.1 Concrete: 32 MPa at 28 days."],
+    ["Example Wall     STRUCTURAL STEEL FRAMING   Section 05 12 00", "Rehab (Phase 2)                    Page 1 of 1",
+     "Project #: 000-00                 March, 2025", "1.1 Summary: supply and erect steel."],
 ]
 
 
@@ -54,7 +70,7 @@ def main(argv):
     if not argv or argv[0].startswith("-"):
         print(__doc__)
         return 2
-    pages = [list(p) for p in PAGES]
+    pages = [list(p) for p in (PAGES_HEADER_STYLE if "--header-style" in argv else PAGES)]
     if "--marked" in argv:
         pages[0].append("PROTECTED B")
     if "--blank-page" in argv:

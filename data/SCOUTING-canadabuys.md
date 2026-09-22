@@ -32,7 +32,7 @@ Tender notices 1,616 (all statuses); award notices 130; contract-history records
 Useful: market-tested totals for comparable scopes when `procurementMethod` is competitive and `selectionCriteria` is lowest price; amendment values (a proxy for change-order size); supplier and date for inflation adjustment. Weak: scope detail is one paragraph; no line items; a competitive award is the winning price, not the range of bids. Non-competitive rows (`limitedTenderingReason`) must be labelled, not treated as market-tested.
 NCC: appears as an organization on award notices (older services notices seen); its recent construction volume is unverified.
 
-## Plan and effort (estimates)
+## Plan and effort (the estimate made BEFORE the download; the results sections below supersede it)
 1. Download `awardNoticeComplete...csv` once (101 MB); filter `procurementCategory` = CNST and `regionsOfDelivery` containing National Capital Region / Ottawa / Gatineau; keep only the filtered CSV (expected small); delete the big file. Machine time: minutes. Optional: the 271 MB historical file (legacy layout, check columns).
 2. Extend `data/comparables.csv` columns (contract number, supplier, method, selection criteria, region, UNSPSC/GSIN, amendment flags, source URL, tax basis) and map rows. Public data: no sanitization needed, but keep `synthetic=no` and cite the file and retrieval date.
 3. Quality rules: one row per contract with initial and total value separated; amendments kept as their own rows and flagged; competitive vs non-competitive flagged; currency checked; duplicates by `contractNumber` + amendment number removed.

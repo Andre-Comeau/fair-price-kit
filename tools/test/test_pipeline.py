@@ -97,6 +97,35 @@ def main():
         rc, out = run(TOOLS / "build_index.py", proj / "kb")
         if rc != 0 or "excluded 0" not in out:
             bad.append(("reviewed exception should let the chunk through", out))
+        # 8. a spec with only running page headers (no SECTION heading lines) is sectioned automatically
+        hdr_pdf = tmp / "hdr.pdf"
+        run(TEST / "make_synthetic_pdf.py", hdr_pdf, "--header-style")
+        run(TOOLS / "pdf_to_text.py", hdr_pdf, tmp / "hdr.md")
+        hkb = tmp / "hkb"
+        rc, out = run(TOOLS / "chunk_doc.py", tmp / "hdr.md", "--type", "spec", "--doc-id", "H", "--out", hkb / "chunks",
+                      "--approved")
+        got = {}
+        for f in (hkb / "chunks").glob("*.md"):
+            fmv = dict(l.split(": ", 1) for l in f.read_text(encoding="utf-8").split("---\n")[1].strip().splitlines())
+            got[json.loads(fmv.get("section", "null"))] = json.loads(fmv["pages"])
+        if rc != 0 or "using page-headers" not in out or got.get("03 30 00") != [3, 4] or got.get("05 12 00") != [5, 5] \
+                or set(got) != {None, "00 01 10", "03 30 00", "05 12 00"}:
+            bad.append(("automatic page-header sectioning", rc, out, got))
+        # 9. friendly failures instead of tracebacks
+        rc, out = run(TOOLS / "chunk_doc.py", tmp / "missing.md", "--type", "spec", "--doc-id", "X", "--out", tmp / "o")
+        if rc != 2 or "Traceback" in out:
+            bad.append(("missing input must fail cleanly", rc, out))
+        (tmp / "empty.md").write_text("", encoding="utf-8")
+        rc, out = run(TOOLS / "chunk_doc.py", tmp / "empty.md", "--type", "other", "--doc-id", "X", "--out", tmp / "o2")
+        if rc != 1 or "no chunks written" not in out:
+            bad.append(("empty input must not report success", rc, out))
+        rc, out = run(TOOLS / "prescrub.py", tmp / "missing.md", tmp / "x.md")
+        if rc != 2 or "Traceback" in out:
+            bad.append(("prescrub missing input", rc, out))
+        (tmp / "badallow.txt").write_text("re:([unclosed\n", encoding="utf-8")
+        rc, out = run(TOOLS / "scan_sensitive.py", "--allow", tmp / "badallow.txt", san)
+        if rc != 2 or "bad regex" not in out or "Traceback" in out:
+            bad.append(("bad allowlist regex", rc, out))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     if bad:

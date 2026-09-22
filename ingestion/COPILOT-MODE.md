@@ -19,7 +19,7 @@ Still to confirm before the first real document (write the answers in `private/L
 ## Gate 0: the human, before anything is uploaded
 - [ ] Look at the first page, every page header/footer and any stamps for Protected A/B/C or Confidential/Secret/Top Secret markings (English or French). Marked => STOP. Only you and your security contact can decide to proceed; record who authorized it in `private/LOG.md` first.
 - [ ] Look for security-sensitive content: access control, CCTV, intrusion detection, secure or restricted areas, vaults, blast/ballistic requirements, an SRCL. If present, ask your security contact first.
-- [ ] Confirm the answer to question 2 above covers this document's category. Pricing can itself be a competitive-advantage matter (Protected B in the Standard's examples); if unsure how NCC categorizes it, ask.
+- [ ] Confirm the answer to question 2 above covers this document's category. Pricing can itself be a competitive-advantage matter (Protected B in the Standard's examples); if unsure how the organization categorizes it, ask.
 - [ ] Original filenames stay in `private/LOG.md`; give the working copy a neutral id (`spec-vol1`).
 
 ## Stages
@@ -63,7 +63,7 @@ Formatting: keep each spec section heading on its own line, starting at the firs
 When unsure whether something identifies a party or what role a party has: do NOT guess. Use [PARTY-?n] and list it. Do not try to identify or restore any replaced value.
 Output three things, separated by lines of ====:
 1) the sanitized text;
-2) the mapping table as CSV `placeholder,role,real_value,first_seen_page` (this is private);
+2) the mapping table as CSV `placeholder,role,real_value,first_seen_page` (this is private), with one row for EVERY form in which each party appears: full name, initial plus surname, initials, abbreviations, and spelled-out or short forms of a place;
 3) questions for me, each by page and line and proposed placeholder, without repeating the sensitive value where you can avoid it.
 Text:
 [paste window]

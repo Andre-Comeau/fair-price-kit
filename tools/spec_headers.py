@@ -54,8 +54,12 @@ def spec_sections_from_headers(text):
                 cur = None
             continue
         if no != cur:
-            out.append((no, title, m.start()))
+            # start AFTER the page marker, like a heading-style section: the marker of a section's first page then sits at
+            # the end of the previous section, where chunk_doc expects it (starting on the marker itself made page_at() miss it)
+            out.append((no, title, m.end()))
             cur = no
+    if out:
+        out[0] = (out[0][0], out[0][1], 0)  # the first section also owns the text before it (keeps the sections tiling the text)
     res = []
     for i, (no, title, start) in enumerate(out):
         end = out[i + 1][2] if i + 1 < len(out) else len(text)

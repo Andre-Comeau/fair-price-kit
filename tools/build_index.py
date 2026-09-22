@@ -65,7 +65,11 @@ def main(argv):
 
     allow_file = kb / "gate-allow.txt"  # reviewed exceptions for the scanner (see scan_sensitive.load_allow)
     if allow_file.is_file():
-        ss.load_allow(allow_file)
+        try:
+            ss.load_allow(allow_file)
+        except ValueError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 2
     chunks, excluded, xref = [], [], {}
     for f in sorted(chunks_dir.glob("*.md")):
         fm, body = parse_fm(f.read_text(encoding="utf-8"))

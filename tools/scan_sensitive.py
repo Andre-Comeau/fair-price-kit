@@ -77,11 +77,20 @@ def load_allow(path):
     substring of the MATCHED text; a line starting 're:' is a regex searched in the matched text. Use it for
     matches a human has reviewed and accepted (public body names, ALL-CAPS drawing notes read as addresses,
     a proprietary-information notice). It only silences matching text; it never disables a pattern."""
-    for line in Path(path).read_text(encoding="utf-8").splitlines():
+    p = Path(path)
+    if not p.is_file():
+        raise ValueError(f"allowlist file not found: {p}")
+    for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
         line = line.strip()
         if not line or line.startswith("#"):
             continue
-        ALLOW.append(("re", re.compile(line[3:].strip(), re.I)) if line.startswith("re:") else ("lit", line.lower()))
+        if line.startswith("re:"):
+            try:
+                ALLOW.append(("re", re.compile(line[3:].strip(), re.I)))
+            except re.error as e:
+                raise ValueError(f"{p} line {n}: bad regex ({e})") from None
+        else:
+            ALLOW.append(("lit", line.lower()))
 
 
 def is_allowed(text: str) -> bool:
@@ -141,7 +150,11 @@ def main(argv):
         if i + 1 >= len(argv):
             print("error: --allow needs a file", file=sys.stderr)
             return 2
-        load_allow(argv[i + 1])
+        try:
+            load_allow(argv[i + 1])
+        except ValueError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 2
         argv = argv[:i] + argv[i + 2:]
     total = 0
     by_cat = {}
