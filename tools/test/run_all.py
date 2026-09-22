@@ -13,6 +13,7 @@ TESTS = [
     ("CanadaBuys filter", ["test_canadabuys_filter.py"]),
     ("Power Automate reference logic", ["flow_reference.py", "selftest"]),
     ("end-to-end pipeline", ["test_pipeline.py"]),
+    ("webapp engine", ["test_webapp.py"]),
 ]
 
 

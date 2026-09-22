@@ -18,6 +18,7 @@ The National Capital Commission (NCC), a federal Crown corporation, is the **wor
 | use the public award data | `data/canadabuys-awards-ncr-construction.README.md` (cautions before any number) |
 | check the tools work | `python tools/test/run_all.py` |
 | see what a real run taught us | `ingestion/TRIAL-colonel-by-drive.md` |
+| use it without an AI coding assistant | `webapp/README.md` — `python webapp/server.py`, local only |
 
 ## What is in the repository
 - **The skill.** `SKILL.md` (agent instructions in the Agent Skills form), `templates/justification-template.md`, `sources/register.csv` (25 entries: 21 read at the page or API they cite, 1 partly verified, 1 marked unverified, 2 planning assumptions).
@@ -25,7 +26,8 @@ The National Capital Commission (NCC), a federal Crown corporation, is the **wor
 - **Ingestion.** `ingestion/RULEBOOK.md` (stop rules on classified and protected material and on tool authorization; workflow from PDF to chunks), `COPILOT-MODE.md` (paste-ready prompts for Microsoft Copilot), `POWER-AUTOMATE.md` (build guide for the gate, approval, chunking and index as cloud flows where no scripting is available), `FORMAT.md`, `placeholders.md`, and `doc-types/` (specification, drawing, CCN, CO, CI, CD, SI, EA and how change documents relate).
 - **Tools** (pure Python, standard library; `pdftotext` from poppler, or `pypdf`, for PDFs): `init_project.py`, `pdf_to_text.py`, `prescrub.py`, `chunk_doc.py`, `spec_headers.py`, `build_index.py`, `scan_sensitive.py`, `canadabuys_filter.py`. Tested on Python 3.10.
 - **Data.** `data/canadabuys-awards-ncr-construction.csv` (125 Ottawa-area construction awards, 2022-2026), `data/canadabuys-tender-attachments-index.csv` (links only; 555), their two READMEs, `data/SCOUTING-canadabuys.md` (what CanadaBuys offers and its rules), `data/SOURCES-candidates.md` (survey of further public sources: bids and amendments, escalation indexes, labour and equipment rates), and `data/comparables.csv` (empty by design). A private companion repository, `fair-price-corpus`, holds generic facts extracted from sanitized project documents once reviewed (`data/README.md`); it is not used by any tool here yet.
-- **Tests.** `tools/test/` (synthetic data only): `python tools/test/run_all.py` runs five groups, including an end-to-end pipeline test (skipped with a message if `pdftotext` is not installed).
+- **Webapp.** `webapp/` — a local-only (`127.0.0.1`, never reachable off the machine) UI for scanning text, browsing the register and the award data, and drafting, for someone without an AI coding assistant. Stdlib only, no `pip install`; drafting is the one route that calls an LLM (see `webapp/README.md`).
+- **Tests.** `tools/test/` (synthetic data only): `python tools/test/run_all.py` runs six groups, including an end-to-end pipeline test (skipped with a message if `pdftotext` is not installed).
 
 ## Using it as an agent skill
 Copy this folder to `~/.claude/skills/fair-price-justification/` (Claude Code personal skills) so `SKILL.md` sits at the top of the skill folder. This installation route has **not** been tested here. The skill instructs the agent to cite only the register, to draft (never approve), to run the sensitive-information gate, and to use the award data only under the rules in `SKILL.md`.

@@ -121,13 +121,10 @@ def iter_files(paths):
             sys.exit(2)
 
 
-def scan_file(path: Path):
+def scan_text(text: str):
+    """Scan in-memory text and return [(line_no, category, masked_value), ...]. No file I/O -- safe to
+    call from a web handler or a test on text that never touches disk."""
     hits = []
-    try:
-        text = path.read_text(encoding="utf-8", errors="replace")
-    except OSError as e:
-        print(f"error: cannot read {path}: {e}", file=sys.stderr)
-        sys.exit(2)
     for n, line in enumerate(text.splitlines(), 1):
         if MARKER in line:
             continue
@@ -139,6 +136,15 @@ def scan_file(path: Path):
                     continue
                 hits.append((n, cat, mask(m.group(0))))
     return hits
+
+
+def scan_file(path: Path):
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError as e:
+        print(f"error: cannot read {path}: {e}", file=sys.stderr)
+        sys.exit(2)
+    return scan_text(text)
 
 
 def main(argv):

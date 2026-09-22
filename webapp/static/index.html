@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fair-price-kit — local assistant</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <h1>fair-price-kit</h1>
+  <p class="tag">Runs on this machine only (127.0.0.1). Scanning, register lookup and award search never leave it.
+     Drafting sends your inputs to the Anthropic API using your own <code>ANTHROPIC_API_KEY</code> — the one step that does.</p>
+</header>
+
+<main>
+  <section id="intake">
+    <h2>1. The decision</h2>
+    <p class="hint">Asked, never assumed — same fields SKILL.md's "Inputs to collect" step asks for.</p>
+    <form id="intake-form">
+      <label>Organization and governing instrument
+        <input type="text" id="org" placeholder="e.g. an invented Crown corporation, its own procurement policy">
+      </label>
+      <label>Requirement (what's being bought, quantity/period, competitive or non-competitive)
+        <textarea id="requirement" rows="2"></textarea>
+      </label>
+      <label>Price and basis of payment
+        <input type="text" id="price" placeholder="e.g. $92,400 fixed price, taxes excluded">
+      </label>
+      <label>Price evidence (bids, prior contracts, catalogue prices, rate benchmarks)
+        <textarea id="evidence" rows="3"></textarea>
+        <button type="button" class="scan-btn" data-target="evidence">Check for sensitive info</button>
+      </label>
+      <label>Decision-maker and delegated authority
+        <input type="text" id="decisionmaker" placeholder="e.g. Director of Facilities, up to $150,000">
+      </label>
+    </form>
+    <div id="scan-result" class="result"></div>
+  </section>
+
+  <section id="register">
+    <h2>2. Policy register</h2>
+    <p class="hint">Every citation in a draft must come from here. <input type="text" id="register-filter" placeholder="filter…"></p>
+    <div id="register-table" class="scroll-table"></div>
+  </section>
+
+  <section id="awards">
+    <h2>3. Public award data (comparables)</h2>
+    <p class="hint">
+      <input type="text" id="award-query" placeholder="search title, e.g. elevator">
+      <label><input type="checkbox" id="award-unflagged" checked> unflagged only</label>
+      <label><input type="checkbox" id="award-competitive"> competitive + lowest-price only</label>
+      <button type="button" id="award-search-btn">Search</button>
+    </p>
+    <div id="award-table" class="scroll-table"></div>
+  </section>
+
+  <section id="draft">
+    <h2>4. Draft</h2>
+    <button type="button" id="draft-btn">Generate DRAFT justification</button>
+    <div id="draft-result" class="result"></div>
+  </section>
+</main>
+
+<script src="/app.js"></script>
+</body>
+</html>
