@@ -81,6 +81,51 @@ def test_scan_route_finds_something_end_to_end():
     assert data["clean"] is False
 
 
+class _FakeAPIResponse:
+    def __init__(self, payload):
+        self._payload = json.dumps(payload).encode("utf-8")
+
+    def read(self):
+        return self._payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        return False
+
+
+def test_draft_route_passes_truncated_through_to_the_response(monkeypatch):
+    # End-to-end version of test_webapp.py's truncated-flag test -- through the actual HTTP route,
+    # not just the engine function -- so a future change to server.py's response dict can't drop the
+    # field without a test noticing.
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-fake-for-testing-only")
+    fake_payload = {
+        "content": [{"type": "text", "text": "cut off mid-sen"}],
+        "usage": {"input_tokens": 10, "output_tokens": 4000},
+        "stop_reason": "max_tokens",
+    }
+    # engine.urllib.request IS the same module object test_webapp_server.py's own _post()/_get()
+    # import -- replacing urlopen globally would fake out our own test-client requests to the local
+    # server too, so the fake delegates to the real urlopen for anything that isn't the Anthropic call.
+    real_urlopen = engine.urllib.request.urlopen
+
+    def fake_urlopen(req, timeout=60):
+        url = req.full_url if hasattr(req, "full_url") else str(req)
+        if "api.anthropic.com" in url:
+            return _FakeAPIResponse(fake_payload)
+        return real_urlopen(req, timeout=timeout)
+
+    monkeypatch.setattr(engine.urllib.request, "urlopen", fake_urlopen)
+    try:
+        status, data = _post("/api/draft", json.dumps({"organization": "test"}).encode("utf-8"))
+        assert status == 200
+        assert data["truncated"] is True
+    finally:
+        monkeypatch.undo()
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+
 def test_unexpected_internal_error_is_a_clean_500_not_a_hang(monkeypatch):
     # Simulates a real bug in a route handler -- engine.load_register raising instead of returning
     # a list -- and confirms the catch-all in do_GET turns it into JSON, not a dropped connection

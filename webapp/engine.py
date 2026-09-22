@@ -259,4 +259,9 @@ def draft_with_llm(inputs: dict = None, messages: list = None, model: str = "cla
         "usage": usage,
         "estimated_cost_usd": estimate_cost_usd(usage, model),
         "messages": updated_messages,
+        # data["stop_reason"] == "max_tokens" means the model was still writing when it hit
+        # max_tokens and the draft is cut off mid-document, with no error of any kind otherwise --
+        # exactly what happened in live testing (cut off mid-table, before the conclusion or sources
+        # section). Surfaced explicitly so a truncated draft is never mistaken for a finished one.
+        "truncated": data.get("stop_reason") == "max_tokens",
     }

@@ -18,6 +18,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import engine  # noqa: E402
 
+class LocalServer(ThreadingHTTPServer):
+    # ThreadingHTTPServer defaults allow_reuse_address to True (SO_REUSEADDR), which on Windows can
+    # let a second process silently bind the same port instead of failing -- two server instances
+    # then answer requests unpredictably, and a restart can look successful while the old process
+    # (with old code) keeps serving some or all traffic. Off, so a real conflict always surfaces as
+    # the clean error below instead of silent, inconsistent double-binding.
+    allow_reuse_address = False
+
+
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 STATIC_FILES = {
     "/": ("index.html", "text/html; charset=utf-8"),
@@ -132,6 +141,7 @@ class Handler(BaseHTTPRequestHandler):
                 "usage": result["usage"],
                 "estimated_cost_usd": result["estimated_cost_usd"],
                 "messages": result["messages"],
+                "truncated": result["truncated"],
             })
 
         return self._json(404, {"error": f"no such route: POST {parsed.path}"})
@@ -146,7 +156,7 @@ def main(argv):
             return 2
         port = int(argv[i + 1])
     try:
-        httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)  # 127.0.0.1 only -- see module docstring
+        httpd = LocalServer(("127.0.0.1", port), Handler)  # 127.0.0.1 only -- see module docstring
     except OSError as e:
         print(f"error: could not start the server on 127.0.0.1:{port}: {e}", file=sys.stderr)
         print("This usually means something is already using that port -- maybe the webapp is "
@@ -167,6 +177,10 @@ def main(argv):
         httpd.serve_forever()
     except KeyboardInterrupt:
         print("\nstopped")
+    finally:
+        httpd.server_close()  # release the port immediately -- don't wait on process teardown/GC to
+                               # do it, which is what let a stale process keep answering requests
+                               # after a restart looked clean in an earlier version of this file
     return 0
 
 

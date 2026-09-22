@@ -149,10 +149,16 @@ function renderDraftTurn(result, label) {
   const cost = typeof result.estimated_cost_usd === "number"
     ? `$${result.estimated_cost_usd.toFixed(4)} this call (${result.usage.input_tokens} in / ${result.usage.cache_read_input_tokens || 0} cached / ${result.usage.output_tokens} out) — $${sessionSpendUsd.toFixed(4)} so far this session`
     : "cost unknown for this model";
+  const truncatedWarning = result.truncated
+    ? `<div class="finding warn"><strong>⚠ Cut off before finishing:</strong> the model hit the output
+       length limit mid-document. This is NOT a complete draft -- do not use it as one. Reply below
+       asking it to continue, or shorten the inputs and try again.</div>`
+    : "";
   return `
     <div class="draft-turn">
       ${label ? `<p class="hint"><strong>${escapeHtml(label)}</strong></p>` : ""}
       <div class="finding ok">${cost}</div>
+      ${truncatedWarning}
       <div class="citation-list">
         ${used ? `<strong>Citations found in the register:</strong> ${used}` : ""}
         ${unknown ? `<br><strong>⚠ Not found in the register — check before trusting:</strong> ${unknown}` : ""}

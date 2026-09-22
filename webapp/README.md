@@ -19,7 +19,11 @@ Then open `http://127.0.0.1:8420` (this also opens on its own, the same as the l
 can't reach a package index (see `OPEN-QUESTIONS.md` #12, which is exactly this constraint).
 
 If port 8420 is already taken (most often because the webapp is already running in another window),
-the server says so plainly instead of a raw crash, and suggests `--port` to pick a different one.
+the server says so plainly instead of a raw crash, and suggests `--port` to pick a different one. The
+server also releases the port immediately on `Ctrl+C` and refuses to let a second instance quietly
+share it (Windows in particular allows that by default, which can leave an old process answering
+some requests after what looked like a clean restart) — if a restart ever doesn't pick up a change,
+that's the first thing to suspect: check nothing from an earlier window is still running.
 
 ## What stays local, and what doesn't
 The server binds to `127.0.0.1` only — hardcoded, not a flag, so it is never reachable from another
@@ -80,6 +84,9 @@ the account's own billing is the real limit.
 `max_tokens` (the output cap) is `engine.MAX_OUTPUT_TOKENS`, deliberately generous (8000): a lower
 cap doesn't save real money if the draft doesn't need that many tokens, but it can silently cut a
 draft off mid-section with no error, which is worse than the small worst-case-estimate cost it buys.
+If a draft is still cut off (a very long requirement, a long reply chain), the page says so plainly —
+a red "Cut off before finishing" banner, from the API's own `stop_reason` field, not a guess based on
+token counts — instead of a truncated document being mistaken for a complete one.
 
 ## The citation check is a safety net, not a guarantee
 `validate_citations()` in `engine.py` flags any all-caps hyphenated token that looks like a register

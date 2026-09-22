@@ -1,5 +1,7 @@
-"""Tests for webapp/engine.py -- the deterministic functions only. No server, no network:
-draft_with_llm() is exercised only for its no-API-key error path, never for a real call."""
+"""Tests for webapp/engine.py -- the deterministic functions only. No real network: draft_with_llm()
+is exercised for its no-API-key and cost-ceiling error paths without any call at all, and for its
+response-parsing behaviour (the truncated flag) against a fake urlopen standing in for the API."""
+import json
 import sys
 from pathlib import Path
 
@@ -167,6 +169,59 @@ def test_draft_with_llm_cost_ceiling_applies_to_messages_path_too(monkeypatch):
     except engine.DraftError as e:
         assert "ceiling" in str(e)
     finally:
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+
+class _FakeAPIResponse:
+    """Stands in for the object urllib.request.urlopen() returns -- a context manager with .read()
+    returning bytes, same as the real one."""
+    def __init__(self, payload: dict):
+        self._payload = json.dumps(payload).encode("utf-8")
+
+    def read(self):
+        return self._payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        return False
+
+
+def test_draft_with_llm_reports_truncated_when_stop_reason_is_max_tokens(monkeypatch):
+    # Regression test for a real failure seen in live testing: a draft was cut off mid-table with no
+    # error at all, and the only way to tell was noticing a missing template section by hand. This
+    # locks in that draft_with_llm() surfaces it itself instead of relying on that kind of noticing.
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-fake-for-testing-only")
+    fake_payload = {
+        "content": [{"type": "text", "text": "# Price justification\n\n(cut off mid-sent"}],
+        "usage": {"input_tokens": 10, "output_tokens": 4000},
+        "stop_reason": "max_tokens",
+    }
+    original_urlopen = engine.urllib.request.urlopen
+    engine.urllib.request.urlopen = lambda req, timeout=60: _FakeAPIResponse(fake_payload)
+    try:
+        result = engine.draft_with_llm({"organization": "test"})
+        assert result["truncated"] is True
+    finally:
+        engine.urllib.request.urlopen = original_urlopen
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+
+def test_draft_with_llm_reports_not_truncated_on_a_normal_finish(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-fake-for-testing-only")
+    fake_payload = {
+        "content": [{"type": "text", "text": "a complete draft, finished normally"}],
+        "usage": {"input_tokens": 10, "output_tokens": 50},
+        "stop_reason": "end_turn",
+    }
+    original_urlopen = engine.urllib.request.urlopen
+    engine.urllib.request.urlopen = lambda req, timeout=60: _FakeAPIResponse(fake_payload)
+    try:
+        result = engine.draft_with_llm({"organization": "test"})
+        assert result["truncated"] is False
+    finally:
+        engine.urllib.request.urlopen = original_urlopen
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
 
