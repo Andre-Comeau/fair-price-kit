@@ -35,6 +35,17 @@ python webapp/server.py
 Without it, every other feature still works; drafting returns a clear error instead of failing
 silently or crashing.
 
+## What a draft actually costs
+`SKILL.md` + the whole register + the template (~4,600 tokens) go into a cached `system` block on
+every call, since they're identical regardless of what you ask — after the first call in a 5-minute
+window, repeat calls pay 10% of input price for that block instead of full price. On Claude Sonnet 5
+pricing ($2/MTok in, $10/MTok out, $0.20/MTok on a cache hit), that's roughly **$0.02 for the first
+draft, ~$0.013 for each one after it** in the same 5-minute window. The UI shows the real cost from
+the API's own usage numbers after every call, plus a running total for that browser tab — not an
+estimate, the actual figure. `draft_with_llm()` also refuses to send a request at all if a rough
+worst-case estimate exceeds `max_cost_usd` (default $0.25), as a guard against something unusually
+large, not a budget tracker — the account's own billing is the real limit.
+
 ## The citation check is a safety net, not a guarantee
 `validate_citations()` in `engine.py` flags any all-caps hyphenated token that looks like a register
 id (`TBS-DMP-4.3.1`, `CANADABUYS-AWARD-DATA`) but isn't actually one. It's a heuristic on shape, not

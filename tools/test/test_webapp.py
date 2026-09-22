@@ -78,6 +78,43 @@ def test_draft_with_llm_fails_clearly_without_api_key(monkeypatch):
         assert "ANTHROPIC_API_KEY" in str(e)
 
 
+def test_build_system_blocks_is_cacheable_and_holds_the_fixed_context():
+    blocks = engine.build_system_blocks({})
+    assert blocks[0]["cache_control"] == {"type": "ephemeral"}
+    assert "TBS-DMP-3.1" in blocks[0]["text"]  # the register really is in there
+    assert "When to use" in blocks[0]["text"]  # so is SKILL.md
+
+
+def test_build_user_message_carries_inputs_not_fixed_context():
+    msg = engine.build_user_message({"organization": "Test Org", "price": "$1"})
+    assert "Test Org" in msg
+    assert "TBS-DMP-3.1" not in msg  # the register belongs in the cached system block, not here
+
+
+def test_estimate_cost_usd_matches_hand_calculation():
+    usage = {"input_tokens": 1000, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0, "output_tokens": 500}
+    cost = engine.estimate_cost_usd(usage, "claude-sonnet-5")
+    expected = (1000 * 2.00 + 500 * 10.00) / 1_000_000
+    assert abs(cost - expected) < 1e-9
+
+
+def test_estimate_cost_usd_unknown_model_returns_none():
+    assert engine.estimate_cost_usd({"input_tokens": 1}, "not-a-real-model") is None
+
+
+def test_draft_with_llm_refuses_before_calling_network_when_over_ceiling(monkeypatch):
+    # A fake key gets past the "is a key set" check; the cost ceiling must still stop it before
+    # any request is built, so this never touches the network even with fake credentials.
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-fake-for-testing-only")
+    try:
+        engine.draft_with_llm({"organization": "test"}, max_cost_usd=0.0000001)
+        assert False, "expected DraftError from the cost ceiling"
+    except engine.DraftError as e:
+        assert "ceiling" in str(e)
+    finally:
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+
 def main():
     tests = [v for k, v in globals().items() if k.startswith("test_")]
     failed = 0
@@ -102,6 +139,10 @@ class _FakeMonkeypatch:
     def delenv(self, name, raising=True):
         import os
         os.environ.pop(name, None)
+
+    def setenv(self, name, value):
+        import os
+        os.environ[name] = value
 
 
 if __name__ == "__main__":

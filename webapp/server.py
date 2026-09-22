@@ -100,11 +100,16 @@ class Handler(BaseHTTPRequestHandler):
 
         if parsed.path == "/api/draft":
             try:
-                draft = engine.draft_with_llm(body)
+                result = engine.draft_with_llm(body)
             except engine.DraftError as e:
                 return self._json(400, {"error": str(e)})
-            citations = engine.validate_citations(draft)
-            return self._json(200, {"draft": draft, "citations": citations})
+            citations = engine.validate_citations(result["draft"])
+            return self._json(200, {
+                "draft": result["draft"],
+                "citations": citations,
+                "usage": result["usage"],
+                "estimated_cost_usd": result["estimated_cost_usd"],
+            })
 
         return self._json(404, {"error": f"no such route: POST {parsed.path}"})
 

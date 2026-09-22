@@ -27,6 +27,7 @@ function el(html) {
 // ---------- register ----------
 
 let registerRows = [];
+let sessionSpendUsd = 0; // running total for this browser tab only -- reset on reload, not a real ledger
 
 async function loadRegister() {
   const { rows } = await getJSON("/api/register");
@@ -115,10 +116,15 @@ document.getElementById("draft-btn").addEventListener("click", async () => {
     decision_maker: document.getElementById("decisionmaker").value,
   };
   try {
-    const { draft, citations } = await postJSON("/api/draft", inputs);
+    const { draft, citations, usage, estimated_cost_usd } = await postJSON("/api/draft", inputs);
     const used = citations.used.map(id => `<span class="used">${escapeHtml(id)}</span>`).join("");
     const unknown = citations.unknown.map(id => `<span class="unknown">${escapeHtml(id)}</span>`).join("");
+    if (typeof estimated_cost_usd === "number") sessionSpendUsd += estimated_cost_usd;
+    const cost = typeof estimated_cost_usd === "number"
+      ? `$${estimated_cost_usd.toFixed(4)} this call (${usage.input_tokens} in / ${usage.cache_read_input_tokens || 0} cached / ${usage.output_tokens} out) — $${sessionSpendUsd.toFixed(4)} so far this session`
+      : "cost unknown for this model";
     box.innerHTML = `
+      <div class="finding ok">${cost}</div>
       <div class="citation-list">
         ${used ? `<strong>Citations found in the register:</strong> ${used}` : ""}
         ${unknown ? `<br><strong>⚠ Not found in the register — check before trusting:</strong> ${unknown}` : ""}

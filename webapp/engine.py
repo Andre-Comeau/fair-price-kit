@@ -104,25 +104,70 @@ class DraftError(Exception):
     pass
 
 
-def build_prompt(inputs: dict) -> str:
+# $ per million tokens, Claude Sonnet 5 (confirmed at docs.claude.com/en/docs/about-claude/pricing,
+# 2026-09-22). Update this if the model in draft_with_llm's default changes.
+PRICING = {
+    "claude-sonnet-5": {"input": 2.00, "cache_write_5m": 2.50, "cache_hit": 0.20, "output": 10.00},
+}
+
+
+def estimate_cost_usd(usage: dict, model: str) -> float | None:
+    """Compute the real cost of one call from the API's own usage numbers -- not a guess made
+    before the call, a calculation from what actually happened."""
+    p = PRICING.get(model)
+    if not p:
+        return None
+    cost = (
+        usage.get("input_tokens", 0) * p["input"]
+        + usage.get("cache_creation_input_tokens", 0) * p["cache_write_5m"]
+        + usage.get("cache_read_input_tokens", 0) * p["cache_hit"]
+        + usage.get("output_tokens", 0) * p["output"]
+    ) / 1_000_000
+    return round(cost, 5)
+
+
+def build_system_blocks(inputs: dict) -> list:
+    """The fixed context (SKILL.md + the whole register + the template) as a cached system block.
+    It's identical on every call regardless of what the operator asked, so it's the one part worth
+    caching: after the first call in a 5-minute window, repeat calls pay 10% of input price for
+    this whole block instead of full price. Kept separate from build_user_message() so each can be
+    tested without a network call."""
     register_csv_text = REGISTER_CSV.read_text(encoding="utf-8") if REGISTER_CSV.is_file() else ""
     skill_text = SKILL_MD.read_text(encoding="utf-8") if SKILL_MD.is_file() else ""
     template_text = TEMPLATE_MD.read_text(encoding="utf-8") if TEMPLATE_MD.is_file() else ""
+    return [{
+        "type": "text",
+        "text": (
+            f"{skill_text}\n\n---\n\n"
+            f"Register (sources/register.csv), the ONLY source of policy citations:\n{register_csv_text}\n\n---\n\n"
+            f"Template to fill:\n{template_text}"
+        ),
+        "cache_control": {"type": "ephemeral"},
+    }]
+
+
+def build_user_message(inputs: dict) -> str:
+    """The small, per-call part -- what actually changes between drafts. Never cached; there's
+    nothing to gain caching a few lines that differ every time."""
     fields = "\n".join(f"- {k}: {v}" for k, v in inputs.items() if v)
     return (
-        f"{skill_text}\n\n---\n\n"
-        f"Register (sources/register.csv), the ONLY source of policy citations:\n{register_csv_text}\n\n---\n\n"
-        f"Template to fill:\n{template_text}\n\n---\n\n"
         f"Inputs supplied by the operator (mark every one of these figures user-supplied in the output):\n{fields}\n\n"
         f"Follow SKILL.md's Steps exactly. Output only the filled template."
     )
 
 
-def draft_with_llm(inputs: dict, model: str = "claude-sonnet-5") -> str:
+def draft_with_llm(inputs: dict, model: str = "claude-sonnet-5", max_cost_usd: float = 0.25) -> dict:
     """Calls the Anthropic Messages API with the operator's own ANTHROPIC_API_KEY (read from the
     environment only -- never stored, never sent anywhere else). This is the single point in the
     whole webapp where data leaves the machine, and it goes only to the API key's own owner's
-    account, same as it would from any AI assistant."""
+    account, same as it would from any AI assistant.
+
+    Returns {"draft": str, "usage": {...}, "estimated_cost_usd": float} -- the cost is computed
+    from the API response's own token counts after the call, not guessed beforehand.
+    max_cost_usd is a sanity ceiling on the *estimated pre-call* cost (worst case, assuming no
+    cache hit and the full max_tokens output) -- catches a runaway prompt before it's sent, not
+    after; a real run typically costs far less. It does not touch a budget the account itself
+    enforces."""
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise DraftError(
@@ -130,11 +175,23 @@ def draft_with_llm(inputs: dict, model: str = "claude-sonnet-5") -> str:
             "lookup, award search) works without it; drafting needs it because it is the one step "
             "that requires an LLM. Set it and restart the server to enable drafting."
         )
-    prompt = build_prompt(inputs)
+    max_tokens = 4000
+    system_blocks = build_system_blocks(inputs)
+    p = PRICING.get(model)
+    if p:
+        worst_case_input_tok = len(system_blocks[0]["text"]) / 4 + len(build_user_message(inputs)) / 4
+        worst_case = (worst_case_input_tok * p["cache_write_5m"] + max_tokens * p["output"]) / 1_000_000
+        if worst_case > max_cost_usd:
+            raise DraftError(
+                f"refusing to call the API: worst-case estimate ${worst_case:.3f} exceeds the "
+                f"${max_cost_usd:.2f} ceiling for this call. Something is unusually large -- check "
+                f"the inputs before raising max_cost_usd."
+            )
     body = json.dumps({
         "model": model,
-        "max_tokens": 4000,
-        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": max_tokens,
+        "system": system_blocks,
+        "messages": [{"role": "user", "content": build_user_message(inputs)}],
     }).encode("utf-8")
     req = urllib.request.Request(
         "https://api.anthropic.com/v1/messages",
@@ -154,6 +211,8 @@ def draft_with_llm(inputs: dict, model: str = "claude-sonnet-5") -> str:
     except urllib.error.URLError as e:
         raise DraftError(f"could not reach the Anthropic API: {e.reason}") from None
     try:
-        return "".join(block["text"] for block in data["content"] if block.get("type") == "text")
+        draft_text = "".join(block["text"] for block in data["content"] if block.get("type") == "text")
     except (KeyError, TypeError):
         raise DraftError(f"unexpected API response shape: {data}") from None
+    usage = data.get("usage", {})
+    return {"draft": draft_text, "usage": usage, "estimated_cost_usd": estimate_cost_usd(usage, model)}
