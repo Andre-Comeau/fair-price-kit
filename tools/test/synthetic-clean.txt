@@ -1,0 +1,2 @@
+Price for [VENDOR-A] at [SITE-1] is [AMOUNT] per hour; comparable rates are in comparables row CMP-0001.
+Provision TBS-DMP-4.10.1.5 requires documentation of ongoing price validations.

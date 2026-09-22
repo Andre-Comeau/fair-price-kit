@@ -1,0 +1,7 @@
+SYNTHETIC TEST FILE. Every value below is made up (555 phone numbers, example.com).
+Contract No: ABC-2026-0042 was awarded to Northwind Traders Inc. for work at 123 Example Street.
+Contact Mr. Smith at jane.doe@example.com or (613) 555-0123, postal code K1A 0B1.
+Site coordinates 45.42153, -75.69719. Business number 123456789 RT0001.
+Prepared by: A. Person
+This document is Protected B.
+Reviewed public item: 613-555-0100 gate-ok

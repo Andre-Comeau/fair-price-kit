@@ -1,0 +1,6 @@
+placeholder,role,real_value,first_seen_doc
+[SUB-MECH-1],subcontractor mechanical,Northwind Traders,co-099
+[SUB-CONCRETE-1],subcontractor concrete,Contoso Concrete,co-007
+[PERSON-CM-PM-1],CM project manager,Jane Doe,co-099
+[OWNER],owner,Example Owner Corp.,spec-vol1
+[X],short value must be ignored,Ab,spec-vol1

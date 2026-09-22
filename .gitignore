@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+
+# Never commit project workspaces or anything that could hold real, unsanitized documents
+P[0-9][0-9][0-9]/
+projects/
+**/raw/
+**/private/
+*.pdf
+*.zip
+
+# Local secrets and noise
+.env
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
