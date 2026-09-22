@@ -16,4 +16,6 @@ Further public sources worth adding (with what each fills, licence and cautions)
 
 Rows may also be derived from the sanitized knowledge base (`ingestion/`), e.g. amounts and unit prices in CO/CD/EA chunks. Cite the chunk id in `source_reference`, carry over the document's own `amount_type`, and never mix `pending` or unreviewed material into this table.
 
+A companion repository, `fair-price-corpus` (private, separate from this one), is where generic facts extracted from sanitized project documents accumulate once they pass both the sensitive-information gate here and its own publication-review gate — section titles, generic pay-item descriptions, generalized requirements, not the source documents themselves (sanitizing for privacy does not clear copyright over the document's own wording; see that repo's `NOTICE.md`). This is separate from `comparables.csv` above and from the CanadaBuys data, and is not yet used by any tool in this kit.
+
 Growth path: comparables -> rate cards by category -> cost-build-up templates (labour, materials, overhead, margin) -> estimating tool. Add each stage only after the previous one has been used on real files.
