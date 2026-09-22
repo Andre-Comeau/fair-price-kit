@@ -93,9 +93,13 @@ def load_allow(path):
             ALLOW.append(("lit", line.lower()))
 
 
-def is_allowed(text: str) -> bool:
+def is_allowed(text: str, allow=None) -> bool:
+    """allow defaults to the module-global ALLOW list (the CLI's --allow file). Pass an explicit
+    list instead to check against a caller-supplied set without touching global state -- required
+    for a threaded server handling more than one request's exceptions at once (see webapp/engine.py)."""
+    active = ALLOW if allow is None else allow
     tl = text.lower()
-    return any((k == "lit" and v in tl) or (k == "re" and v.search(text)) for k, v in ALLOW)
+    return any((k == "lit" and v in tl) or (k == "re" and v.search(text)) for k, v in active)
 
 
 def is_public_url(url: str) -> bool:
@@ -121,9 +125,12 @@ def iter_files(paths):
             sys.exit(2)
 
 
-def scan_text(text: str):
-    """Scan in-memory text and return [(line_no, category, masked_value), ...]. No file I/O -- safe to
-    call from a web handler or a test on text that never touches disk."""
+def scan_text(text: str, allow=None):
+    """Scan in-memory text and return [(line_no, category, masked_value, start, end), ...], start/end
+    being character offsets of the match WITHIN that line (so a caller holding the original text, e.g.
+    a browser tab that never sent the raw text anywhere else, can locate or redact the exact span
+    without the server ever having to send the unmasked value back). No file I/O -- safe to call from
+    a web handler or a test on text that never touches disk. allow: see is_allowed()."""
     hits = []
     for n, line in enumerate(text.splitlines(), 1):
         if MARKER in line:
@@ -132,9 +139,9 @@ def scan_text(text: str):
             for m in rx.finditer(line):
                 if cat == "url" and is_public_url(m.group(0)):
                     continue
-                if is_allowed(m.group(0)):
+                if is_allowed(m.group(0), allow):
                     continue
-                hits.append((n, cat, mask(m.group(0))))
+                hits.append((n, cat, mask(m.group(0)), m.start(), m.end()))
     return hits
 
 
@@ -166,7 +173,7 @@ def main(argv):
     by_cat = {}
     for f in iter_files(argv):
         hits = scan_file(f)
-        for n, cat, masked in hits:
+        for n, cat, masked, *_ in hits:
             print(f"{f}:{n}: {cat}: {masked}")
             by_cat[cat] = by_cat.get(cat, 0) + 1
         total += len(hits)

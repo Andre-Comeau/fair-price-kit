@@ -55,26 +55,60 @@ document.getElementById("register-filter").addEventListener("input", (e) => {
 });
 
 // ---------- sensitive-info scan ----------
+// acceptedExceptions: text the operator has looked at and decided is not sensitive, this browser
+// tab only -- sent back on every scan so it isn't flagged again. Never written to disk; mirrors
+// the CLI's kb/gate-allow.txt idea (gates/sensitive-info-gate.md) but lasts only as long as the tab.
+let acceptedExceptions = [];
+let lastScanFindings = [];
 
 document.querySelectorAll(".scan-btn").forEach(btn => {
-  btn.addEventListener("click", async () => {
-    const target = document.getElementById(btn.dataset.target);
-    const box = document.getElementById("scan-result");
-    box.innerHTML = "<p class='hint'>Scanning…</p>";
-    try {
-      const result = await postJSON("/api/scan", { text: target.value });
-      if (result.clean) {
-        box.innerHTML = "<div class='finding ok'>No pattern matches. This does not guarantee nothing identifying remains — review before sharing.</div>";
-      } else {
-        const items = result.findings.map(f =>
-          `<div class="finding warn">line ${f.line}: <strong>${escapeHtml(f.category)}</strong>: ${escapeHtml(f.masked)}</div>`).join("");
-        box.innerHTML = `<div class="finding warn">${result.count} possible sensitive item(s) — do not share until reviewed.</div>${items}`;
-      }
-    } catch (e) {
-      box.innerHTML = `<div class="finding warn">${escapeHtml(e.message)}</div>`;
-    }
-  });
+  btn.addEventListener("click", () => runScan(document.getElementById(btn.dataset.target)));
 });
+
+async function runScan(target) {
+  const box = document.getElementById("scan-result");
+  box.innerHTML = "<p class='hint'>Scanning…</p>";
+  try {
+    const result = await postJSON("/api/scan", { text: target.value, allow: acceptedExceptions });
+    lastScanFindings = result.findings;
+    if (result.clean) {
+      box.innerHTML = "<div class='finding ok'>No pattern matches. This does not guarantee nothing identifying remains — review before sharing.</div>";
+      return;
+    }
+    const items = result.findings.map((f, i) => `
+      <div class="finding warn">
+        line ${f.line}: <strong>${escapeHtml(f.category)}</strong>: ${escapeHtml(f.masked)}
+        <button type="button" class="redact-btn" data-idx="${i}" data-target="${target.id}">Redact</button>
+        <button type="button" class="keep-btn" data-idx="${i}" data-target="${target.id}">Keep — not sensitive</button>
+      </div>`).join("");
+    box.innerHTML = `<div class="finding warn">${result.count} possible sensitive item(s) — do not share until reviewed.</div>${items}`;
+    box.querySelectorAll(".redact-btn").forEach(b => b.addEventListener("click", () => {
+      editField(document.getElementById(b.dataset.target), lastScanFindings[Number(b.dataset.idx)], "redact");
+    }));
+    box.querySelectorAll(".keep-btn").forEach(b => b.addEventListener("click", () => {
+      editField(document.getElementById(b.dataset.target), lastScanFindings[Number(b.dataset.idx)], "keep");
+    }));
+  } catch (e) {
+    box.innerHTML = `<div class="finding warn">${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// Redact replaces the exact matched span with [CATEGORY] in the field, in place. Keep records the
+// exact matched text (read straight from the field -- the server only ever sent back a masked
+// preview) as reviewed-and-accepted, so future scans won't flag that specific text again. Either
+// way, re-scan afterward: editing shifts offsets, and a fresh scan is the only way to stay correct.
+function editField(target, finding, action) {
+  const lines = target.value.split("\n");
+  const line = lines[finding.line - 1] || "";
+  const matched = line.slice(finding.start, finding.end);
+  if (action === "redact") {
+    lines[finding.line - 1] = line.slice(0, finding.start) + `[${finding.category.toUpperCase()}]` + line.slice(finding.end);
+    target.value = lines.join("\n");
+  } else if (matched && !acceptedExceptions.includes(matched)) {
+    acceptedExceptions.push(matched);
+  }
+  runScan(target);
+}
 
 // ---------- award search ----------
 
@@ -104,10 +138,33 @@ document.getElementById("award-search-btn").addEventListener("click", async () =
 });
 
 // ---------- draft ----------
+// conversationMessages holds the API's own "messages" array between calls, so a reply to the
+// draft continues the same conversation instead of starting a fresh, context-free one.
+let conversationMessages = null;
+
+function renderDraftTurn(result, label) {
+  const used = result.citations.used.map(id => `<span class="used">${escapeHtml(id)}</span>`).join("");
+  const unknown = result.citations.unknown.map(id => `<span class="unknown">${escapeHtml(id)}</span>`).join("");
+  if (typeof result.estimated_cost_usd === "number") sessionSpendUsd += result.estimated_cost_usd;
+  const cost = typeof result.estimated_cost_usd === "number"
+    ? `$${result.estimated_cost_usd.toFixed(4)} this call (${result.usage.input_tokens} in / ${result.usage.cache_read_input_tokens || 0} cached / ${result.usage.output_tokens} out) — $${sessionSpendUsd.toFixed(4)} so far this session`
+    : "cost unknown for this model";
+  return `
+    <div class="draft-turn">
+      ${label ? `<p class="hint"><strong>${escapeHtml(label)}</strong></p>` : ""}
+      <div class="finding ok">${cost}</div>
+      <div class="citation-list">
+        ${used ? `<strong>Citations found in the register:</strong> ${used}` : ""}
+        ${unknown ? `<br><strong>⚠ Not found in the register — check before trusting:</strong> ${unknown}` : ""}
+      </div>
+      <pre>${escapeHtml(result.draft)}</pre>
+    </div>`;
+}
 
 document.getElementById("draft-btn").addEventListener("click", async () => {
   const box = document.getElementById("draft-result");
   box.innerHTML = "<p class='hint'>Drafting… this is the one step that calls an LLM.</p>";
+  document.getElementById("draft-feedback").style.display = "none";
   const inputs = {
     organization: document.getElementById("org").value,
     requirement: document.getElementById("requirement").value,
@@ -116,22 +173,33 @@ document.getElementById("draft-btn").addEventListener("click", async () => {
     decision_maker: document.getElementById("decisionmaker").value,
   };
   try {
-    const { draft, citations, usage, estimated_cost_usd } = await postJSON("/api/draft", inputs);
-    const used = citations.used.map(id => `<span class="used">${escapeHtml(id)}</span>`).join("");
-    const unknown = citations.unknown.map(id => `<span class="unknown">${escapeHtml(id)}</span>`).join("");
-    if (typeof estimated_cost_usd === "number") sessionSpendUsd += estimated_cost_usd;
-    const cost = typeof estimated_cost_usd === "number"
-      ? `$${estimated_cost_usd.toFixed(4)} this call (${usage.input_tokens} in / ${usage.cache_read_input_tokens || 0} cached / ${usage.output_tokens} out) — $${sessionSpendUsd.toFixed(4)} so far this session`
-      : "cost unknown for this model";
-    box.innerHTML = `
-      <div class="finding ok">${cost}</div>
-      <div class="citation-list">
-        ${used ? `<strong>Citations found in the register:</strong> ${used}` : ""}
-        ${unknown ? `<br><strong>⚠ Not found in the register — check before trusting:</strong> ${unknown}` : ""}
-      </div>
-      <pre>${escapeHtml(draft)}</pre>`;
+    const result = await postJSON("/api/draft", inputs);
+    conversationMessages = result.messages;
+    box.innerHTML = renderDraftTurn(result, null);
+    document.getElementById("draft-feedback").style.display = "block";
   } catch (e) {
     box.innerHTML = `<div class="finding warn">${escapeHtml(e.message)}</div>`;
+  }
+});
+
+document.getElementById("feedback-btn").addEventListener("click", async () => {
+  const feedbackBox = document.getElementById("feedback-text");
+  const text = feedbackBox.value.trim();
+  const box = document.getElementById("draft-result");
+  if (!text) return;
+  if (!conversationMessages) {
+    box.insertAdjacentHTML("beforeend", "<div class='finding warn'>Generate a draft first — there's no conversation to reply to yet.</div>");
+    return;
+  }
+  box.insertAdjacentHTML("beforeend", "<p class='hint'>Sending your response…</p>");
+  const nextMessages = conversationMessages.concat([{ role: "user", content: text }]);
+  try {
+    const result = await postJSON("/api/draft", { messages: nextMessages });
+    conversationMessages = result.messages;
+    feedbackBox.value = "";
+    box.insertAdjacentHTML("beforeend", renderDraftTurn(result, `Your response: "${text}"`));
+  } catch (e) {
+    box.insertAdjacentHTML("beforeend", `<div class="finding warn">${escapeHtml(e.message)}</div>`);
   }
 });
 

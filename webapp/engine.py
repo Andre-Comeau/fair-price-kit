@@ -26,15 +26,22 @@ ID_LIKE = re.compile(r"\b[A-Z][A-Z0-9]*(?:-[A-Z0-9.]+)+\b")  # matches TBS-DMP-4
 
 # ---------- sensitive-information gate (wraps tools/scan_sensitive.py, no file I/O) ----------
 
-def scan_input(text: str) -> dict:
+def scan_input(text: str, allow: list = None) -> dict:
     """Run the real scanner on in-memory text. Returns the same category/masked-value shape the
-    CLI prints, plus a clean flag. This is the identical logic SKILL.md requires running before
-    anything is used or shared -- just called in-process instead of via subprocess."""
-    hits = ss.scan_text(text or "")
+    CLI prints, plus a clean flag, plus each match's (line, start, end) so a caller that already
+    holds the real text (the browser tab the operator typed into) can locate the exact span to
+    redact -- the server still never sends the unmasked value back.
+
+    allow: plain-text strings the operator has already reviewed and accepted as not sensitive
+    (built client-side from a previous scan's offsets; see webapp/README.md). Checked per-request,
+    never written anywhere, never shared across requests -- this is not the CLI's persistent
+    kb/gate-allow.txt, it only lasts as long as the browser tab remembers it."""
+    allow_tuples = [("lit", a.lower()) for a in (allow or []) if a]
+    hits = ss.scan_text(text or "", allow=allow_tuples)
     by_cat = {}
     findings = []
-    for line_no, cat, masked in hits:
-        findings.append({"line": line_no, "category": cat, "masked": masked})
+    for line_no, cat, masked, start, end in hits:
+        findings.append({"line": line_no, "category": cat, "masked": masked, "start": start, "end": end})
         by_cat[cat] = by_cat.get(cat, 0) + 1
     return {"clean": not hits, "count": len(hits), "by_category": by_cat, "findings": findings}
 
@@ -126,7 +133,7 @@ def estimate_cost_usd(usage: dict, model: str) -> float | None:
     return round(cost, 5)
 
 
-def build_system_blocks(inputs: dict) -> list:
+def build_system_blocks() -> list:
     """The fixed context (SKILL.md + the whole register + the template) as a cached system block.
     It's identical on every call regardless of what the operator asked, so it's the one part worth
     caching: after the first call in a 5-minute window, repeat calls pay 10% of input price for
@@ -156,18 +163,27 @@ def build_user_message(inputs: dict) -> str:
     )
 
 
-def draft_with_llm(inputs: dict, model: str = "claude-sonnet-5", max_cost_usd: float = 0.25) -> dict:
+def draft_with_llm(inputs: dict = None, messages: list = None, model: str = "claude-sonnet-5",
+                    max_cost_usd: float = 0.25) -> dict:
     """Calls the Anthropic Messages API with the operator's own ANTHROPIC_API_KEY (read from the
     environment only -- never stored, never sent anywhere else). This is the single point in the
     whole webapp where data leaves the machine, and it goes only to the API key's own owner's
     account, same as it would from any AI assistant.
 
-    Returns {"draft": str, "usage": {...}, "estimated_cost_usd": float} -- the cost is computed
-    from the API response's own token counts after the call, not guessed beforehand.
+    Two ways to call it:
+    - inputs: a fresh first draft, built from the "Inputs to collect" fields.
+    - messages: continue an existing conversation (the "messages" list a previous call returned,
+      with one more {"role": "user", "content": ...} appended -- the operator's reply to something
+      the draft raised, e.g. a gap it flagged). Exactly one of the two must be given.
+
+    Returns {"draft": str, "usage": {...}, "estimated_cost_usd": float, "messages": [...]} -- the
+    returned "messages" is the full conversation so far, including the reply just generated; pass
+    it straight back in as `messages` (with a new user turn appended) for the next round. Cost is
+    computed from the API response's own token counts after the call, not guessed beforehand.
     max_cost_usd is a sanity ceiling on the *estimated pre-call* cost (worst case, assuming no
     cache hit and the full max_tokens output) -- catches a runaway prompt before it's sent, not
-    after; a real run typically costs far less. It does not touch a budget the account itself
-    enforces."""
+    after; a real run typically costs far less, and a longer conversation costs more each round
+    since prior turns are resent. It does not touch a budget the account itself enforces."""
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise DraftError(
@@ -175,23 +191,30 @@ def draft_with_llm(inputs: dict, model: str = "claude-sonnet-5", max_cost_usd: f
             "lookup, award search) works without it; drafting needs it because it is the one step "
             "that requires an LLM. Set it and restart the server to enable drafting."
         )
+    if messages:
+        conversation = messages
+    elif inputs is not None:
+        conversation = [{"role": "user", "content": build_user_message(inputs)}]
+    else:
+        raise DraftError("draft_with_llm needs either inputs (a first draft) or messages (a reply)")
+
     max_tokens = 4000
-    system_blocks = build_system_blocks(inputs)
+    system_blocks = build_system_blocks()
     p = PRICING.get(model)
     if p:
-        worst_case_input_tok = len(system_blocks[0]["text"]) / 4 + len(build_user_message(inputs)) / 4
+        worst_case_input_tok = len(system_blocks[0]["text"]) / 4 + sum(len(m.get("content", "")) for m in conversation) / 4
         worst_case = (worst_case_input_tok * p["cache_write_5m"] + max_tokens * p["output"]) / 1_000_000
         if worst_case > max_cost_usd:
             raise DraftError(
                 f"refusing to call the API: worst-case estimate ${worst_case:.3f} exceeds the "
                 f"${max_cost_usd:.2f} ceiling for this call. Something is unusually large -- check "
-                f"the inputs before raising max_cost_usd."
+                f"the inputs (or how long this conversation has grown) before raising max_cost_usd."
             )
     body = json.dumps({
         "model": model,
         "max_tokens": max_tokens,
         "system": system_blocks,
-        "messages": [{"role": "user", "content": build_user_message(inputs)}],
+        "messages": conversation,
     }).encode("utf-8")
     req = urllib.request.Request(
         "https://api.anthropic.com/v1/messages",
@@ -215,4 +238,10 @@ def draft_with_llm(inputs: dict, model: str = "claude-sonnet-5", max_cost_usd: f
     except (KeyError, TypeError):
         raise DraftError(f"unexpected API response shape: {data}") from None
     usage = data.get("usage", {})
-    return {"draft": draft_text, "usage": usage, "estimated_cost_usd": estimate_cost_usd(usage, model)}
+    updated_messages = conversation + [{"role": "assistant", "content": draft_text}]
+    return {
+        "draft": draft_text,
+        "usage": usage,
+        "estimated_cost_usd": estimate_cost_usd(usage, model),
+        "messages": updated_messages,
+    }

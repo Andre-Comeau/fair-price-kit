@@ -93,14 +93,19 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(400, {"error": str(e)})
 
         if parsed.path == "/api/scan":
-            return self._json(200, engine.scan_input(body.get("text", "")))
+            return self._json(200, engine.scan_input(body.get("text", ""), allow=body.get("allow")))
 
         if parsed.path == "/api/validate":
             return self._json(200, engine.validate_citations(body.get("text", "")))
 
         if parsed.path == "/api/draft":
+            # {"messages": [...]} continues an existing conversation (a reply to something the
+            # draft raised); anything else is treated as the inputs for a fresh first draft.
             try:
-                result = engine.draft_with_llm(body)
+                if "messages" in body:
+                    result = engine.draft_with_llm(messages=body["messages"])
+                else:
+                    result = engine.draft_with_llm(inputs=body)
             except engine.DraftError as e:
                 return self._json(400, {"error": str(e)})
             citations = engine.validate_citations(result["draft"])
@@ -109,6 +114,7 @@ class Handler(BaseHTTPRequestHandler):
                 "citations": citations,
                 "usage": result["usage"],
                 "estimated_cost_usd": result["estimated_cost_usd"],
+                "messages": result["messages"],
             })
 
         return self._json(404, {"error": f"no such route: POST {parsed.path}"})

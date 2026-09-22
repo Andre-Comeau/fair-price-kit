@@ -17,7 +17,12 @@ The server binds to `127.0.0.1` only — hardcoded, not a flag, so it is never r
 machine. Four of the five things it does never touch a network:
 
 - **Scan** (`/api/scan`) — the real `tools/scan_sensitive.py` logic, called in-process on whatever you
-  type. Nothing is written to disk.
+  type. Nothing is written to disk. Each flagged item gets two buttons: **Redact** replaces the exact
+  matched text in the field with a `[CATEGORY]` placeholder, in place; **Keep — not sensitive** records
+  that exact text (read from your own field, never from the server's masked preview) as reviewed and
+  accepted, so it won't be flagged again this browser session. Neither is written anywhere — this is
+  the CLI's `kb/gate-allow.txt` reviewed-exceptions idea (`gates/sensitive-info-gate.md`), scoped to
+  one tab instead of a file, since the webapp has no per-project folder to keep one in.
 - **Register lookup** (`/api/register`) — reads `sources/register.csv` directly.
 - **Award search** (`/api/awards`) — reads `data/canadabuys-awards-ncr-construction.csv` directly,
   excludes flagged rows by default.
@@ -34,6 +39,15 @@ python webapp/server.py
 ```
 Without it, every other feature still works; drafting returns a clear error instead of failing
 silently or crashing.
+
+## Replying to a draft
+A draft can raise something worth answering — a gap it flagged, a figure it wants confirmed. After
+a draft appears, a text box lets you reply; that reply continues the *same* conversation (the
+API's own `messages` array, round-tripped through the browser tab) rather than starting a fresh,
+context-free one, so the model sees what it said before, not just your new message in isolation.
+Each reply is its own `/api/draft` call — cost and citations are reported per turn, and each turn
+resends the whole conversation so far, so a long back-and-forth costs more per turn than the first
+draft did (still cached on the fixed context; only the growing conversation is uncached).
 
 ## What a draft actually costs
 `SKILL.md` + the whole register + the template (~4,600 tokens) go into a cached `system` block on

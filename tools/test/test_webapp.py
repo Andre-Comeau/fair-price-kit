@@ -29,6 +29,32 @@ def test_scan_input_does_not_flag_dimension_lists():
     assert r["clean"] is True
 
 
+def test_scan_input_offsets_locate_the_real_match():
+    # lowercase lead-in: the company-name pattern is deliberately greedy about a run of
+    # capitalized words (see tools/scan_sensitive.py), so a sentence-initial capital would be
+    # swept into the match too -- not a bug, just not what this test is checking.
+    text = "please call ACME Construction Ltd. today."
+    r = engine.scan_input(text)
+    hit = next(f for f in r["findings"] if f["category"] == "company-name")
+    line = text.splitlines()[hit["line"] - 1]
+    assert line[hit["start"]:hit["end"]] == "ACME Construction Ltd."
+
+
+def test_scan_input_allow_suppresses_a_specific_match_only():
+    text = "Call ACME Construction Ltd. at (613)555-0123 for details."
+    first = engine.scan_input(text)
+    cats_before = {f["category"] for f in first["findings"]}
+    assert {"company-name", "phone"} <= cats_before
+    # accept only the company name (as the UI would, using the offsets to read the real text)
+    hit = next(f for f in first["findings"] if f["category"] == "company-name")
+    line = text.splitlines()[hit["line"] - 1]
+    accepted_text = line[hit["start"]:hit["end"]]
+    second = engine.scan_input(text, allow=[accepted_text])
+    cats_after = {f["category"] for f in second["findings"]}
+    assert "company-name" not in cats_after  # accepted, no longer flagged
+    assert "phone" in cats_after  # NOT accepted -- still flagged, allow is per-item, not global
+
+
 def test_register_loads_and_has_known_ids():
     ids = engine.register_ids()
     assert "TBS-DMP-3.1" in ids
@@ -79,7 +105,7 @@ def test_draft_with_llm_fails_clearly_without_api_key(monkeypatch):
 
 
 def test_build_system_blocks_is_cacheable_and_holds_the_fixed_context():
-    blocks = engine.build_system_blocks({})
+    blocks = engine.build_system_blocks()
     assert blocks[0]["cache_control"] == {"type": "ephemeral"}
     assert "TBS-DMP-3.1" in blocks[0]["text"]  # the register really is in there
     assert "When to use" in blocks[0]["text"]  # so is SKILL.md
@@ -108,6 +134,35 @@ def test_draft_with_llm_refuses_before_calling_network_when_over_ceiling(monkeyp
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-fake-for-testing-only")
     try:
         engine.draft_with_llm({"organization": "test"}, max_cost_usd=0.0000001)
+        assert False, "expected DraftError from the cost ceiling"
+    except engine.DraftError as e:
+        assert "ceiling" in str(e)
+    finally:
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+
+def test_draft_with_llm_requires_inputs_or_messages(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-fake-for-testing-only")
+    try:
+        engine.draft_with_llm()
+        assert False, "expected DraftError when neither inputs nor messages is given"
+    except engine.DraftError as e:
+        assert "inputs" in str(e) and "messages" in str(e)
+    finally:
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+
+def test_draft_with_llm_cost_ceiling_applies_to_messages_path_too(monkeypatch):
+    # A long-running conversation should be sized (and stopped by the ceiling) from the whole
+    # messages list, not just a fresh inputs dict -- confirms the messages branch is covered too.
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-fake-for-testing-only")
+    long_history = [
+        {"role": "user", "content": "x" * 1000},
+        {"role": "assistant", "content": "y" * 1000},
+        {"role": "user", "content": "z" * 1000},
+    ]
+    try:
+        engine.draft_with_llm(messages=long_history, max_cost_usd=0.0000001)
         assert False, "expected DraftError from the cost ceiling"
     except engine.DraftError as e:
         assert "ceiling" in str(e)
