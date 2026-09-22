@@ -12,6 +12,8 @@ Public reference data lives beside it: `canadabuys-awards-ncr-construction.csv` 
 
 `canadabuys-tender-attachments-index.csv` lists the public tender-document links (specs, drawings, addenda) attached to those contracts' tender notices: 555 links, 115 of them for NCC. It is an index of links only; nothing was downloaded, the documents are copyright protected, and any you fetch stay private (see `SCOUTING-canadabuys.md`).
 
+Further public sources worth adding (with what each fills, licence and cautions) are surveyed in `SOURCES-candidates.md`; nothing from that survey has been downloaded yet.
+
 Rows may also be derived from the sanitized knowledge base (`ingestion/`), e.g. amounts and unit prices in CO/CD/EA chunks. Cite the chunk id in `source_reference`, carry over the document's own `amount_type`, and never mix `pending` or unreviewed material into this table.
 
 Growth path: comparables -> rate cards by category -> cost-build-up templates (labour, materials, overhead, margin) -> estimating tool. Add each stage only after the previous one has been used on real files.

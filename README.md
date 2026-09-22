@@ -20,11 +20,11 @@ The National Capital Commission (NCC), a federal Crown corporation, is the **wor
 | see what a real run taught us | `ingestion/TRIAL-colonel-by-drive.md` |
 
 ## What is in the repository
-- **The skill.** `SKILL.md` (agent instructions in the Agent Skills form), `templates/justification-template.md`, `sources/register.csv` (19 entries: 16 read at the page they cite, 1 marked unverified, 2 planning assumptions).
+- **The skill.** `SKILL.md` (agent instructions in the Agent Skills form), `templates/justification-template.md`, `sources/register.csv` (25 entries: 20 read at the page or API they cite, 1 partly verified, 2 marked unverified, 2 planning assumptions).
 - **Gates.** `gates/sensitive-info-gate.md` (rules for warning about locations, vendors, consultants, contractors and individuals) and `tools/scan_sensitive.py` (pattern scanner; supports reviewed exceptions with `--allow`).
 - **Ingestion.** `ingestion/RULEBOOK.md` (stop rules on classified and protected material and on tool authorization; workflow from PDF to chunks), `COPILOT-MODE.md` (paste-ready prompts for Microsoft Copilot), `POWER-AUTOMATE.md` (build guide for the gate, approval, chunking and index as cloud flows where no scripting is available), `FORMAT.md`, `placeholders.md`, and `doc-types/` (specification, drawing, CCN, CO, CI, CD, SI, EA and how change documents relate).
 - **Tools** (pure Python, standard library; `pdftotext` from poppler, or `pypdf`, for PDFs): `init_project.py`, `pdf_to_text.py`, `prescrub.py`, `chunk_doc.py`, `spec_headers.py`, `build_index.py`, `scan_sensitive.py`, `canadabuys_filter.py`. Tested on Python 3.10.
-- **Data.** `data/canadabuys-awards-ncr-construction.csv` (125 Ottawa-area construction awards, 2022-2026), `data/canadabuys-tender-attachments-index.csv` (links only; 555), their two READMEs, `data/SCOUTING-canadabuys.md` (what CanadaBuys offers and its rules), and `data/comparables.csv` (empty by design).
+- **Data.** `data/canadabuys-awards-ncr-construction.csv` (125 Ottawa-area construction awards, 2022-2026), `data/canadabuys-tender-attachments-index.csv` (links only; 555), their two READMEs, `data/SCOUTING-canadabuys.md` (what CanadaBuys offers and its rules), `data/SOURCES-candidates.md` (survey of further public sources: bids and amendments, escalation indexes, labour and equipment rates), and `data/comparables.csv` (empty by design).
 - **Tests.** `tools/test/` (synthetic data only): `python tools/test/run_all.py` runs five groups, including an end-to-end pipeline test (skipped with a message if `pdftotext` is not installed).
 
 ## Using it as an agent skill
