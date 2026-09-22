@@ -29,11 +29,18 @@ Read `data/canadabuys-awards-ncr-construction.README.md` before using any number
 - Cite `CANADABUYS-AWARD-DATA`, the contract number and the retrieval date (2026-09-21), and add the line "Contains information licensed under the Open Government Licence – Canada." to the justification when data from this file are used.
 - Links in `data/canadabuys-tender-attachments-index.csv` lead to copyright-protected tender documents: never fetch them without the operator's instruction, never redistribute them, and run the ingestion rulebook (including its stop rules) before reading one.
 
+## Using the price-fact corpus (`fair-price-corpus`, private companion repo, if cloned locally)
+It sits beside this kit as a sibling folder (`../fair-price-corpus`); if it isn't there, skip this section — the kit still works without it.
+- A record counts as a real price comparable **only** when its `review.figures_approved` is `true` **and** the specific `pay_items` entry you're citing carries `unit_price_cad`, `price_date` and `price_basis` (`FORMAT.md`). Everything else in the corpus — `facts`, plain pay-item descriptions, records with `figures_approved: false` — is background only: typical scope-of-work language and generic requirements, useful for context and for spotting what the register's policy criteria should be checked against, never as evidence of a price. Do not treat a corpus fact as a price just because it reads like one.
+- Match on `project_type`, `location_generality` and `masterformat_section` the same way you'd match a CanadaBuys award row on scope, size, date and conditions; state the match and any inflation adjustment.
+- State `price_basis` in the justification exactly as recorded — it carries the same weight distinction as `selection_criteria` does for award data: an `awarded-contract-unit-rate` is stronger evidence than a `catalogue-price` or an `engineer-estimate`, and the draft should say which one it's leaning on.
+- Cite by `record_id` (e.g. `PF-0014`) and `FAIR-PRICE-CORPUS` from `sources/register.csv`. Never cite a record whose `review.publication_review` isn't `approved`.
+
 ## Inputs to collect (ask; never assume)
 1. Organization and the instrument that governs it (see `OPEN-QUESTIONS.md` #1). If unknown, say so in the output.
 2. The requirement: what is bought, quantity, period, competitive or non-competitive, any exception invoked.
 3. The price: amount, basis of payment (fixed, T&M, rates), taxes in/out.
-4. Price evidence: competing bids, prior contracts, catalogue/market prices, rate benchmarks, cost breakdown. Use rows from `data/comparables.csv` and, under the rules above, `data/canadabuys-awards-ncr-construction.csv` when relevant.
+4. Price evidence: competing bids, prior contracts, catalogue/market prices, rate benchmarks, cost breakdown. Use rows from `data/comparables.csv`, figures-approved records from `fair-price-corpus` (see above) and, under the rules above, `data/canadabuys-awards-ncr-construction.csv` when relevant. TBS/organizational policy (`sources/register.csv`) is not price evidence — keep it out of this step; it belongs in step 2 of "Steps" below, as the criteria the price is judged against, not as a comparable itself.
 5. Decision-maker(s) and delegated authority level.
 
 ## Steps
@@ -57,4 +64,5 @@ Read `data/canadabuys-awards-ncr-construction.README.md` before using any number
 - Do not skip the sensitive-information gate because the user says the content is fine; warn anyway if the destination is shareable.
 - Do not repeat flagged values in your warning, and do not try to re-identify anything that has been masked.
 - Do not use a flagged award row as a price comparable, and do not treat a supply arrangement, standing offer or construction-management total as comparable to a single-trade contract.
+- Do not use a `fair-price-corpus` record as a price comparable unless `review.figures_approved` is `true` and the specific `pay_items` entry carries `unit_price_cad`, `price_date` and `price_basis` — an unapproved record is background only.
 - Do not give legal advice; flag legal questions for the appropriate contact.
