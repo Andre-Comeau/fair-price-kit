@@ -41,7 +41,8 @@ It sits beside this kit as a sibling folder (`../fair-price-corpus`); if it isn'
 2. The requirement: what is bought, quantity, period, competitive or non-competitive, any exception invoked.
 3. The price: amount, basis of payment (fixed, T&M, rates), taxes in/out.
 4. Price evidence: competing bids, prior contracts, catalogue/market prices, rate benchmarks, cost breakdown. Use rows from `data/comparables.csv`, figures-approved records from `fair-price-corpus` (see above) and, under the rules above, `data/canadabuys-awards-ncr-construction.csv` when relevant. TBS/organizational policy (`sources/register.csv`) is not price evidence — keep it out of this step; it belongs in step 2 of "Steps" below, as the criteria the price is judged against, not as a comparable itself.
-5. Decision-maker(s) and delegated authority level.
+
+Not collected here: who holds delegated authority to approve this price. That determination is assumed to be verified elsewhere in the organization's own approval process (a DOA matrix, an approval workflow, a signing officer's own check) — this draft supports the price being fair and reasonable, it does not establish who is authorized to sign for it. If that check turns out not to exist elsewhere for a given organization, it needs adding back here; don't assume it silently.
 
 ## Steps
 1. Restate the requirement and procurement approach in 2-3 sentences.
@@ -55,7 +56,7 @@ It sits beside this kit as a sibling folder (`../fair-price-corpus`); if it isn'
 - Every policy citation must exist in `sources/register.csv`. If a needed provision is not there, write "provision not in register: needs lookup", not a guess.
 - Never fabricate prices, comparables, vendors, dates or clause numbers.
 - Mark all figures supplied by the user as "user-supplied" and all figures from the data folder with their row id.
-- Draft only. The decision-maker reviews and signs; the output must say "DRAFT for review by [role]".
+- Draft only. This does not confirm who has authority to approve the price (see "Inputs to collect" above) — someone does, and reviews and signs; the output must say "DRAFT for review by [role]".
 
 ## Do not
 - Do not state that a policy requires something unless the register says so.

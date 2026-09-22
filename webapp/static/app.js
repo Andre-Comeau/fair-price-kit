@@ -170,7 +170,6 @@ document.getElementById("draft-btn").addEventListener("click", async () => {
     requirement: document.getElementById("requirement").value,
     price: document.getElementById("price").value,
     price_evidence: document.getElementById("evidence").value,
-    decision_maker: document.getElementById("decisionmaker").value,
   };
   try {
     const result = await postJSON("/api/draft", inputs);
