@@ -20,7 +20,7 @@ The National Capital Commission (NCC), a federal Crown corporation, is the **wor
 | see what a real run taught us | `ingestion/TRIAL-colonel-by-drive.md` |
 
 ## What is in the repository
-- **The skill.** `SKILL.md` (agent instructions in the Agent Skills form), `templates/justification-template.md`, `sources/register.csv` (25 entries: 20 read at the page or API they cite, 1 partly verified, 2 marked unverified, 2 planning assumptions).
+- **The skill.** `SKILL.md` (agent instructions in the Agent Skills form), `templates/justification-template.md`, `sources/register.csv` (25 entries: 21 read at the page or API they cite, 1 partly verified, 1 marked unverified, 2 planning assumptions).
 - **Gates.** `gates/sensitive-info-gate.md` (rules for warning about locations, vendors, consultants, contractors and individuals) and `tools/scan_sensitive.py` (pattern scanner; supports reviewed exceptions with `--allow`).
 - **Ingestion.** `ingestion/RULEBOOK.md` (stop rules on classified and protected material and on tool authorization; workflow from PDF to chunks), `COPILOT-MODE.md` (paste-ready prompts for Microsoft Copilot), `POWER-AUTOMATE.md` (build guide for the gate, approval, chunking and index as cloud flows where no scripting is available), `FORMAT.md`, `placeholders.md`, and `doc-types/` (specification, drawing, CCN, CO, CI, CD, SI, EA and how change documents relate).
 - **Tools** (pure Python, standard library; `pdftotext` from poppler, or `pypdf`, for PDFs): `init_project.py`, `pdf_to_text.py`, `prescrub.py`, `chunk_doc.py`, `spec_headers.py`, `build_index.py`, `scan_sensitive.py`, `canadabuys_filter.py`. Tested on Python 3.10.
