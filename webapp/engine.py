@@ -111,6 +111,13 @@ class DraftError(Exception):
     pass
 
 
+def api_key_configured() -> bool:
+    """Whether ANTHROPIC_API_KEY is set in this environment -- never returns or logs the value
+    itself. Used by /api/health so the UI can say up front that drafting is disabled, instead of
+    the operator only finding out after filling the whole form and clicking Generate."""
+    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+
 # $ per million tokens, Claude Sonnet 5 (confirmed at docs.claude.com/en/docs/about-claude/pricing,
 # 2026-09-22). Update this if the model in draft_with_llm's default changes.
 PRICING = {

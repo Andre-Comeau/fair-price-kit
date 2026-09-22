@@ -14,6 +14,7 @@ TESTS = [
     ("Power Automate reference logic", ["flow_reference.py", "selftest"]),
     ("end-to-end pipeline", ["test_pipeline.py"]),
     ("webapp engine", ["test_webapp.py"]),
+    ("webapp server", ["test_webapp_server.py"]),
 ]
 
 

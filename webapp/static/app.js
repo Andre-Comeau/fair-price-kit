@@ -210,3 +210,12 @@ function escapeHtml(s) {
 loadRegister().catch(e => {
   document.getElementById("register-table").innerHTML = `<div class="finding warn">${escapeHtml(e.message)}</div>`;
 });
+
+// Tells the operator up front that drafting won't work, instead of only after they've filled in
+// the whole form and clicked Generate.
+getJSON("/api/health").then(health => {
+  if (!health.draft_enabled) {
+    document.getElementById("draft-disabled-banner").style.display = "block";
+  }
+}).catch(() => {}); // a failed health check isn't worth its own error message here; every other
+                     // action already reports its own failure clearly if the server is unreachable

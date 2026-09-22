@@ -170,6 +170,16 @@ def test_draft_with_llm_cost_ceiling_applies_to_messages_path_too(monkeypatch):
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
 
+def test_api_key_configured_reads_env(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    assert engine.api_key_configured() is False
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-fake-for-testing-only")
+    try:
+        assert engine.api_key_configured() is True
+    finally:
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+
 def main():
     tests = [v for k, v in globals().items() if k.startswith("test_")]
     failed = 0

@@ -57,6 +57,11 @@
 
   <section id="draft">
     <h2>4. Draft</h2>
+    <div id="draft-disabled-banner" class="finding warn" style="display:none;">
+      Drafting is disabled: <code>ANTHROPIC_API_KEY</code> is not set in the environment the server
+      is running in. Every other feature above still works. See <code>webapp/README.md</code> to set
+      it, then restart the server.
+    </div>
     <button type="button" id="draft-btn">Generate DRAFT justification</button>
     <div id="draft-result" class="result"></div>
     <div id="draft-feedback" style="display:none;">

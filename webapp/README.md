@@ -5,12 +5,21 @@ using this kit shouldn't have to install Claude Code or run Python from a termin
 whether a paragraph is safe to share, or to look up what the register already says.
 
 ## Run it
+Double-click `webapp/run.bat`. It starts the server and opens your browser to it automatically — no
+terminal typing, no address to remember. The window it opens stays open while the server runs (closing
+it, or `Ctrl+C` inside it, stops the server); if something goes wrong on startup, the window stays open
+so you can read the error instead of it flashing shut.
+
+Or run it yourself the same way any of the other tools here run:
 ```
 python webapp/server.py
 ```
-Then open `http://127.0.0.1:8420`. No `pip install` — stdlib only, same as every other tool here, so it
-runs on a locked-down machine that can't reach a package index (see `OPEN-QUESTIONS.md` #12, which is
-exactly this constraint).
+Then open `http://127.0.0.1:8420` (this also opens on its own, the same as the launcher). No
+`pip install` — stdlib only, same as every other tool here, so it runs on a locked-down machine that
+can't reach a package index (see `OPEN-QUESTIONS.md` #12, which is exactly this constraint).
+
+If port 8420 is already taken (most often because the webapp is already running in another window),
+the server says so plainly instead of a raw crash, and suggests `--port` to pick a different one.
 
 ## What stays local, and what doesn't
 The server binds to `127.0.0.1` only — hardcoded, not a flag, so it is never reachable from another
@@ -38,7 +47,13 @@ export ANTHROPIC_API_KEY=sk-ant-...   # or the Windows/PowerShell equivalent
 python webapp/server.py
 ```
 Without it, every other feature still works; drafting returns a clear error instead of failing
-silently or crashing.
+silently or crashing. The page itself says so too — if the server can't see a key, a banner appears
+over the Draft section as soon as the page loads (`/api/health` reports `draft_enabled`), so you find
+out before filling in the whole form rather than after clicking Generate.
+
+Any other bug in a route handler — not just a missing key — comes back to the browser as a normal,
+readable error instead of a hung or reset connection. A stuck spinner with nothing happening used to
+be indistinguishable from "the server isn't running"; now every route always returns something.
 
 ## Replying to a draft
 A draft can raise something worth answering — a gap it flagged, a figure it wants confirmed. After
@@ -79,7 +94,12 @@ human checks before trusting a draft; it doesn't replace reading `sources/regist
   guarantee, exactly as the CLI tool itself says.
 
 ## Files
-- `server.py` — stdlib `http.server`, routes only, no logic of its own.
+- `run.bat` — double-click launcher (Windows): starts `server.py` and opens the browser, stays open
+  on error.
+- `server.py` — stdlib `http.server`, routes only, no logic of its own. Every route is wrapped so an
+  unhandled exception becomes a clean JSON 500, not a dropped connection.
 - `engine.py` — the actual functions (scan, register, award search, citation check, drafting).
   Imported and tested directly by `tools/test/test_webapp.py` without starting a server.
+  `tools/test/test_webapp_server.py` tests the HTTP layer itself (routing, malformed input, the
+  catch-all) against a real server on a throwaway port.
 - `static/` — plain HTML/CSS/vanilla JS, no build step, no CDN dependency.

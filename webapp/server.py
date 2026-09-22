@@ -11,6 +11,7 @@ Usage:  python webapp/server.py [--port 8420]
 import json
 import sys
 import urllib.parse
+import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -62,14 +63,30 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError(f"bad JSON body: {e}") from None
 
     # ---------- routing ----------
+    # do_GET/do_POST are thin wrappers that catch anything the route handlers below don't --
+    # a bug, a missing file, whatever -- and turn it into a clean JSON 500 instead of the browser
+    # seeing a hung or reset connection (indistinguishable, from the UI, from "server not running"
+    # or "unable to connect", which is exactly the confusing state this replaces).
 
     def do_GET(self):
+        try:
+            return self._route_GET()
+        except Exception as e:
+            return self._json(500, {"error": f"internal error: {e}"})
+
+    def do_POST(self):
+        try:
+            return self._route_POST()
+        except Exception as e:
+            return self._json(500, {"error": f"internal error: {e}"})
+
+    def _route_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path in STATIC_FILES:
             name, ctype = STATIC_FILES[parsed.path]
             return self._static(name, ctype)
         if parsed.path == "/api/health":
-            return self._json(200, {"ok": True})
+            return self._json(200, {"ok": True, "draft_enabled": engine.api_key_configured()})
         if parsed.path == "/api/register":
             return self._json(200, {"rows": engine.load_register()})
         if parsed.path == "/api/awards":
@@ -85,7 +102,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, {"rows": rows})
         return self._json(404, {"error": f"no such route: GET {parsed.path}"})
 
-    def do_POST(self):
+    def _route_POST(self):
         parsed = urllib.parse.urlparse(self.path)
         try:
             body = self._read_json_body()
@@ -128,8 +145,24 @@ def main(argv):
             print("error: --port needs a value", file=sys.stderr)
             return 2
         port = int(argv[i + 1])
-    httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)  # 127.0.0.1 only -- see module docstring
-    print(f"fair-price-kit webapp: http://127.0.0.1:{port}  (local only; Ctrl+C to stop)")
+    try:
+        httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)  # 127.0.0.1 only -- see module docstring
+    except OSError as e:
+        print(f"error: could not start the server on 127.0.0.1:{port}: {e}", file=sys.stderr)
+        print("This usually means something is already using that port -- maybe the webapp is "
+              "already running in another window (check for one before starting a new one). "
+              f"Or run with a different port: python webapp/server.py --port {port + 1}", file=sys.stderr)
+        return 1
+    url = f"http://127.0.0.1:{port}"
+    print(f"fair-price-kit webapp: {url}  (local only; Ctrl+C to stop)")
+    if not engine.api_key_configured():
+        print("note: ANTHROPIC_API_KEY is not set in this window -- drafting will be disabled. "
+              "Every other feature (scan, register, award search) still works. See webapp/README.md "
+              "to set it, then restart.")
+    try:
+        webbrowser.open(url)
+    except Exception:
+        pass  # not fatal either way -- the URL above still works if nothing opens on its own
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
