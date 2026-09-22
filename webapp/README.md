@@ -68,12 +68,18 @@ draft did (still cached on the fixed context; only the growing conversation is u
 `SKILL.md` + the whole register + the template (~4,600 tokens) go into a cached `system` block on
 every call, since they're identical regardless of what you ask — after the first call in a 5-minute
 window, repeat calls pay 10% of input price for that block instead of full price. On Claude Sonnet 5
-pricing ($2/MTok in, $10/MTok out, $0.20/MTok on a cache hit), that's roughly **$0.02 for the first
-draft, ~$0.013 for each one after it** in the same 5-minute window. The UI shows the real cost from
-the API's own usage numbers after every call, plus a running total for that browser tab — not an
-estimate, the actual figure. `draft_with_llm()` also refuses to send a request at all if a rough
-worst-case estimate exceeds `max_cost_usd` (default $0.25), as a guard against something unusually
-large, not a budget tracker — the account's own billing is the real limit.
+pricing ($2/MTok in, $10/MTok out, $0.20/MTok on a cache hit), a full draft has run **around $0.05–0.10**
+in practice — it varies with how much the model has to write to fill all 7 template sections, which
+is most of the cost (output is 5x the price of input per token, and cached input is 1/10 of that
+again). The UI shows the real cost from the API's own usage numbers after every call, plus a running
+total for that browser tab — not an estimate, the actual figure; trust that over any number here.
+`draft_with_llm()` also refuses to send a request at all if a rough worst-case estimate exceeds
+`max_cost_usd` (default $0.25), as a guard against something unusually large, not a budget tracker —
+the account's own billing is the real limit.
+
+`max_tokens` (the output cap) is `engine.MAX_OUTPUT_TOKENS`, deliberately generous (8000): a lower
+cap doesn't save real money if the draft doesn't need that many tokens, but it can silently cut a
+draft off mid-section with no error, which is worse than the small worst-case-estimate cost it buys.
 
 ## The citation check is a safety net, not a guarantee
 `validate_citations()` in `engine.py` flags any all-caps hyphenated token that looks like a register

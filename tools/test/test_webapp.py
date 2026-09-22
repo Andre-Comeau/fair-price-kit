@@ -170,6 +170,13 @@ def test_draft_with_llm_cost_ceiling_applies_to_messages_path_too(monkeypatch):
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
 
+def test_max_output_tokens_has_headroom_for_the_full_template():
+    # Regression guard for a real truncation seen in live testing: the old cap (4000) was fully used
+    # and cut the draft off mid-table in section 3 of 7, well before the conclusion, documentation
+    # list or sources section. This doesn't catch every truncation, just a revert back toward that.
+    assert engine.MAX_OUTPUT_TOKENS >= 6000
+
+
 def test_api_key_configured_reads_env(monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     assert engine.api_key_configured() is False

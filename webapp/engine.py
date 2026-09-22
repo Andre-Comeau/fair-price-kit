@@ -111,6 +111,14 @@ class DraftError(Exception):
     pass
 
 
+# The justification template has 7 sections including two tables; a live test run on a modest
+# repair-scope, non-competitive scenario used the full previous cap (4000) and was cut off mid-table
+# in section 3, before it ever reached the conclusion, documentation list or sources section. Raised
+# with headroom -- worst-case cost impact is small (~$0.02 extra at full use, see draft_with_llm's
+# ceiling check) next to the cost of a silently truncated draft someone might not notice is cut off.
+MAX_OUTPUT_TOKENS = 8000
+
+
 def api_key_configured() -> bool:
     """Whether ANTHROPIC_API_KEY is set in this environment -- never returns or logs the value
     itself. Used by /api/health so the UI can say up front that drafting is disabled, instead of
@@ -205,7 +213,7 @@ def draft_with_llm(inputs: dict = None, messages: list = None, model: str = "cla
     else:
         raise DraftError("draft_with_llm needs either inputs (a first draft) or messages (a reply)")
 
-    max_tokens = 4000
+    max_tokens = MAX_OUTPUT_TOKENS
     system_blocks = build_system_blocks()
     p = PRICING.get(model)
     if p:
