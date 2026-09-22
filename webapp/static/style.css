@@ -31,6 +31,15 @@ section {
   margin-bottom: 20px;
 }
 h2 { font-size: 1.05rem; margin: 0 0 8px; }
+details#register-details {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 20px;
+  margin-bottom: 20px;
+  color: var(--muted);
+}
+details#register-details summary { cursor: pointer; font-size: 0.95rem; color: var(--ink); }
+details#register-details[open] summary { margin-bottom: 10px; }
 .hint { color: var(--muted); font-size: 0.85rem; margin: 0 0 10px; }
 label { display: block; margin-bottom: 12px; font-size: 0.9rem; }
 input[type=text], textarea {

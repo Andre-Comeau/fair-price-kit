@@ -37,14 +37,8 @@
     <div id="scan-result" class="result"></div>
   </section>
 
-  <section id="register">
-    <h2>2. Policy register</h2>
-    <p class="hint">Every citation in a draft must come from here. <input type="text" id="register-filter" placeholder="filter…"></p>
-    <div id="register-table" class="scroll-table"></div>
-  </section>
-
   <section id="awards">
-    <h2>3. Public award data (comparables)</h2>
+    <h2>2. Public award data (comparables)</h2>
     <p class="hint">
       <input type="text" id="award-query" placeholder="search title, e.g. elevator">
       <label><input type="checkbox" id="award-unflagged" checked> unflagged only</label>
@@ -55,7 +49,7 @@
   </section>
 
   <section id="draft">
-    <h2>4. Draft</h2>
+    <h2>3. Draft</h2>
     <div id="draft-disabled-banner" class="finding warn" style="display:none;">
       Drafting is disabled: <code>ANTHROPIC_API_KEY</code> is not set in the environment the server
       is running in. Every other feature above still works. See <code>webapp/README.md</code> to set
@@ -70,6 +64,15 @@
       <button type="button" id="feedback-btn">Send response, get revised draft</button>
     </div>
   </section>
+
+  <details id="register-details">
+    <summary>Reference: policy register</summary>
+    <p class="hint">Not a step to complete — the whole register already goes to the model as context
+      on every draft (<code>SKILL.md</code>), and every citation the draft makes is checked against it
+      automatically (see the citations line under each draft above). This is here only if you want to
+      look something up yourself. <input type="text" id="register-filter" placeholder="filter…"></p>
+    <div id="register-table" class="scroll-table"></div>
+  </details>
 </main>
 
 <script src="/app.js"></script>

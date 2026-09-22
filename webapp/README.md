@@ -55,6 +55,20 @@ silently or crashing. The page itself says so too — if the server can't see a 
 over the Draft section as soon as the page loads (`/api/health` reports `draft_enabled`), so you find
 out before filling in the whole form rather than after clicking Generate.
 
+## The policy register is not a step you complete
+Earlier versions of this page had "Policy register" as a numbered section between the intake form and
+the award data, the same shape as the steps you actually do fill in. That was a design mistake: the
+register isn't something the operator does anything with, but a numbered step in a workflow reads as
+one — it can look like the policies were consulted by a person as part of preparing the justification,
+when what actually happens is the whole register goes into the model's context on every draft
+(`SKILL.md`) and gets applied there, automatically, every time, regardless of whether anyone opened
+this page's table at all.
+
+The register is still here — collapsed, unnumbered, at the bottom, labelled "Reference" — for the one
+thing a human plausibly does want it for: looking something up, or double-checking a citation the
+draft made (which is also checked automatically; see the citations line under each draft). It is
+never a step, and the interface doesn't imply it was consulted just because it's present.
+
 Any other bug in a route handler — not just a missing key — comes back to the browser as a normal,
 readable error instead of a hung or reset connection. A stuck spinner with nothing happening used to
 be indistinguishable from "the server isn't running"; now every route always returns something.
