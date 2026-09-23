@@ -29,6 +29,20 @@ Read `data/canadabuys-awards-ncr-construction.README.md` before using any number
 - Cite `CANADABUYS-AWARD-DATA`, the contract number and the retrieval date (2026-09-21), and add the line "Contains information licensed under the Open Government Licence – Canada." to the justification when data from this file are used.
 - Links in `data/canadabuys-tender-attachments-index.csv` lead to copyright-protected tender documents: never fetch them without the operator's instruction, never redistribute them, and run the ingestion rulebook (including its stop rules) before reading one.
 
+## Using the commodity price index (`data/statcan-ippi-construction.csv`)
+Read `data/statcan-ippi-construction.README.md` before using a value. This is the Statistics Canada
+Industrial Product Price Index, filtered to five construction-relevant commodity groups
+(lumber, ferrous metals, non-ferrous metals, fabricated metal/construction materials, cement/glass/
+non-metallic minerals) — it measures **materials-cost movement**, national, monthly. It is never a
+price and never a comparable on its own; use it only to inflation-adjust a comparable that already
+exists (an award row, a corpus figure, a user-supplied prior price), by picking the closest product,
+reading its index value at the comparable's date and at the target date, and showing the arithmetic
+(`adjusted = original * (value_at_target / value_at_original)`). Cite `STATCAN-IPPI`, the exact
+product name, both dates, and note it adjusts materials cost only, not labour or scope. It is
+distinct from `STATCAN-BCPI` (register only, no data file yet): that series measures building-price
+movement for Ottawa–Gatineau specifically; this one measures a national commodity price. Prefer
+whichever is a closer match to what's actually driving the comparable's cost, and say which you used.
+
 ## Using the price-fact corpus (`fair-price-corpus`, private companion repo, if cloned locally)
 It sits beside this kit as a sibling folder (`../fair-price-corpus`); if it isn't there, skip this section — the kit still works without it.
 - A record counts as a real price comparable **only** when its `review.figures_approved` is `true` **and** the specific `pay_items` entry you're citing carries `unit_price_cad`, `price_date` and `price_basis` (`FORMAT.md`). Everything else in the corpus — `facts`, plain pay-item descriptions, records with `figures_approved: false` — is background only: typical scope-of-work language and generic requirements, useful for context and for spotting what the register's policy criteria should be checked against, never as evidence of a price. Do not treat a corpus fact as a price just because it reads like one.

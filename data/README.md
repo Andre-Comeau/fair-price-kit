@@ -12,7 +12,11 @@ Public reference data lives beside it: `canadabuys-awards-ncr-construction.csv` 
 
 `canadabuys-tender-attachments-index.csv` lists the public tender-document links (specs, drawings, addenda) attached to those contracts' tender notices: 555 links, 115 of them for NCC. It is an index of links only; nothing was downloaded, the documents are copyright protected, and any you fetch stay private (see `SCOUTING-canadabuys.md`).
 
-Further public sources worth adding (with what each fills, licence and cautions) are surveyed in `SOURCES-candidates.md`; nothing from that survey has been downloaded yet.
+`statcan-ippi-construction.csv` (Statistics Canada Industrial Product Price Index, filtered to the
+five construction-relevant commodity groups; read its `.README.md` first) is materials-cost movement
+to inflation-adjust a comparable with, not a comparable itself — never cite it as a price.
+
+Further public sources worth adding (with what each fills, licence and cautions) are surveyed in `SOURCES-candidates.md`.
 
 Rows may also be derived from the sanitized knowledge base (`ingestion/`), e.g. amounts and unit prices in CO/CD/EA chunks. Cite the chunk id in `source_reference`, carry over the document's own `amount_type`, and never mix `pending` or unreviewed material into this table.
 

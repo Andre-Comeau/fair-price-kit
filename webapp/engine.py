@@ -18,6 +18,7 @@ import scan_sensitive as ss  # noqa: E402
 
 REGISTER_CSV = ROOT / "sources" / "register.csv"
 AWARDS_CSV = ROOT / "data" / "canadabuys-awards-ncr-construction.csv"
+COMMODITY_INDEX_CSV = ROOT / "data" / "statcan-ippi-construction.csv"
 SKILL_MD = ROOT / "SKILL.md"
 TEMPLATE_MD = ROOT / "templates" / "justification-template.md"
 
@@ -88,6 +89,61 @@ def search_awards(query: str = "", unflagged_only: bool = True, competitive_only
         if len(out) >= limit:
             break
     return out
+
+
+# ---------- commodity price index (materials-cost movement, not a price -- see the data README) ----------
+
+def load_commodity_index() -> list:
+    if not COMMODITY_INDEX_CSV.is_file():
+        return []
+    with COMMODITY_INDEX_CSV.open(newline="", encoding="utf-8-sig") as f:
+        return list(csv.DictReader(f))
+
+
+def search_commodity_products(query: str = "", limit: int = 25) -> list:
+    """Distinct products (one row per vector) matching a plain-text search of the product name or
+    group name, for picking a series before looking up an adjustment factor. Each result carries the
+    vector id (search_commodity_products -> pick a vector -> commodity_index_adjustment)."""
+    rows = load_commodity_index()
+    q = query.strip().lower()
+    seen = {}
+    for r in rows:
+        vec = r.get("vector", "")
+        if vec in seen:
+            continue
+        haystack = " ".join([r.get("product", ""), r.get("napcs_group_name", "")]).lower()
+        if q and q not in haystack:
+            continue
+        seen[vec] = {"vector": vec, "product": r.get("product", ""), "napcs_group": r.get("napcs_group", ""),
+                     "napcs_group_name": r.get("napcs_group_name", "")}
+        if len(seen) >= limit:
+            break
+    return list(seen.values())
+
+
+def commodity_index_adjustment(vector: str, from_date: str, to_date: str) -> dict:
+    """The index value for one series (vector) at two months, and the multiplier to scale a price
+    from from_date to to_date by this series' movement. Raises ValueError if the vector or either
+    month has no published value -- a caller should treat that as 'cannot adjust with this series',
+    not silently skip the adjustment."""
+    rows = [r for r in load_commodity_index() if r.get("vector") == vector]
+    if not rows:
+        raise ValueError(f"no such commodity index vector: {vector}")
+    by_date = {r["ref_date"]: r for r in rows}
+    from_row, to_row = by_date.get(from_date), by_date.get(to_date)
+    if not from_row or not from_row.get("value"):
+        raise ValueError(f"no published index value for {vector} at {from_date}")
+    if not to_row or not to_row.get("value"):
+        raise ValueError(f"no published index value for {vector} at {to_date}")
+    from_value, to_value = float(from_row["value"]), float(to_row["value"])
+    return {
+        "vector": vector,
+        "product": from_row.get("product", ""),
+        "napcs_group_name": from_row.get("napcs_group_name", ""),
+        "from_date": from_date, "from_value": from_value,
+        "to_date": to_date, "to_value": to_value,
+        "factor": round(to_value / from_value, 6) if from_value else None,
+    }
 
 
 # ---------- citation check on a draft (heuristic, not a guarantee -- see webapp/README.md) ----------

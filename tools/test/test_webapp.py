@@ -263,6 +263,43 @@ def test_api_key_configured_reads_env(monkeypatch):
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
 
+def test_commodity_index_search_finds_a_product_by_name():
+    results = engine.search_commodity_products("softwood lumber")
+    assert results
+    assert all("softwood lumber" in r["product"].lower() for r in results)
+    assert results[0]["vector"]  # every result must carry a vector id to look up with
+
+
+def test_commodity_index_adjustment_computes_the_ratio():
+    products = engine.search_commodity_products("Lumber and other wood products [P41]")
+    vector = next(p["vector"] for p in products if p["product"].endswith("[P41]"))
+    rows = [r for r in engine.load_commodity_index() if r["vector"] == vector and r["value"]]
+    rows.sort(key=lambda r: r["ref_date"])
+    first, last = rows[0], rows[-1]
+    result = engine.commodity_index_adjustment(vector, first["ref_date"], last["ref_date"])
+    assert result["from_value"] == float(first["value"])
+    assert result["to_value"] == float(last["value"])
+    assert result["factor"] == round(float(last["value"]) / float(first["value"]), 6)
+
+
+def test_commodity_index_adjustment_rejects_unknown_vector():
+    try:
+        engine.commodity_index_adjustment("v-does-not-exist", "2020-01", "2020-02")
+        assert False, "expected ValueError"
+    except ValueError as e:
+        assert "no such commodity index vector" in str(e)
+
+
+def test_commodity_index_adjustment_rejects_a_month_with_no_published_value():
+    products = engine.search_commodity_products("Lumber and other wood products [P41]")
+    vector = next(p["vector"] for p in products if p["product"].endswith("[P41]"))
+    try:
+        engine.commodity_index_adjustment(vector, "1900-01", "2020-02")
+        assert False, "expected ValueError"
+    except ValueError as e:
+        assert "no published index value" in str(e)
+
+
 def main():
     tests = [v for k, v in globals().items() if k.startswith("test_")]
     failed = 0

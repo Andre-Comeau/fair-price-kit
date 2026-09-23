@@ -57,8 +57,15 @@ Goal: find public, reusable data to add to the kit's database beyond the 125 Can
 - **Ontario MTO tender results with bidder amounts:** a search found none.
 - **Bid amounts:** none of the sources above publishes losing bid amounts. Bid counts (source 1) are the closest.
 
+## Added since this survey
+- **Statistics Canada Industrial Product Price Index** (table 18-10-0266-01), filtered to the five
+  construction-relevant NAPCS groups: downloaded and added 2026-09-23. Register id `STATCAN-IPPI`;
+  data file `data/statcan-ippi-construction.csv` and its README. This is materials-cost movement
+  (commodity-level, national), not the same thing as `STATCAN-BCPI` below (building-price movement,
+  regional) — both are still useful, for different adjustments.
+
 ## Known but not checked (labelled so you do not mistake them for findings)
-Statistics Canada consumer price index and industrial product price indexes (general and materials inflation); Government of Canada "Guide to Proactive Publication" (<https://www.tbs-sct.canada.ca/pol/doc-eng.aspx?id=32763>) for the meaning of the coded fields.
+Statistics Canada consumer price index (general inflation, not materials-specific); Government of Canada "Guide to Proactive Publication" (<https://www.tbs-sct.canada.ca/pol/doc-eng.aspx?id=32763>) for the meaning of the coded fields.
 
 ## Suggested order
 1. Federal proactive contracts (bids and amendments) and CanadaBuys contract history (per-amendment values for the awards already in the kit).
