@@ -16,3 +16,4 @@ projects/
 *.tmp
 .DS_Store
 Thumbs.db
+webapp/tokens.txt

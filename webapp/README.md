@@ -18,6 +18,11 @@ Then open `http://127.0.0.1:8420` (this also opens on its own, the same as the l
 `pip install` — stdlib only, same as every other tool here, so it runs on a locked-down machine that
 can't reach a package index (see `OPEN-QUESTIONS.md` #12, which is exactly this constraint).
 
+This default is exactly what it always was: local only, single user, no token needed for anything.
+`--host` and `--require-auth` exist for someone running a genuinely shared instance — read
+`ARCHITECTURE.md` before using them; they're covered in "Running it for more than one person" below,
+not part of the default path.
+
 If port 8420 is already taken (most often because the webapp is already running in another window),
 the server says so plainly instead of a raw crash, and suggests `--port` to pick a different one. The
 server also releases the port immediately on `Ctrl+C` and refuses to let a second instance quietly
@@ -26,8 +31,9 @@ some requests after what looked like a clean restart) — if a restart ever does
 that's the first thing to suspect: check nothing from an earlier window is still running.
 
 ## What stays local, and what doesn't
-The server binds to `127.0.0.1` only — hardcoded, not a flag, so it is never reachable from another
-machine. Four of the five things it does never touch a network:
+The server binds to `127.0.0.1` by default — nothing reachable from another machine unless you
+explicitly pass `--host` (see "Running it for more than one person" below). Five of the six things it
+does never touch a network:
 
 - **Scan** (`/api/scan`) — the real `tools/scan_sensitive.py` logic, called in-process on whatever you
   type. Nothing is written to disk. Each flagged item gets two buttons: **Redact** replaces the exact
@@ -39,6 +45,8 @@ machine. Four of the five things it does never touch a network:
 - **Register lookup** (`/api/register`) — reads `sources/register.csv` directly.
 - **Award search** (`/api/awards`) — reads `data/canadabuys-awards-ncr-construction.csv` directly,
   excludes flagged rows by default.
+- **Commodity price index** (`/api/commodity-index`) — reads `data/statcan-ippi-construction.csv`
+  directly; search a product, then compute an inflation-adjustment factor between two months.
 - **Citation check** (`/api/validate`, and automatically on every `/api/draft` result) — checks every
   register-id-shaped token in a draft against the real register, and flags any that aren't there.
 
@@ -54,6 +62,27 @@ Without it, every other feature still works; drafting returns a clear error inst
 silently or crashing. The page itself says so too — if the server can't see a key, a banner appears
 over the Draft section as soon as the page loads (`/api/health` reports `draft_enabled`), so you find
 out before filling in the whole form rather than after clicking Generate.
+
+## Running it for more than one person
+Everything above describes the default: one person, one machine, `127.0.0.1`, no token needed
+anywhere. That default doesn't change just because these flags exist.
+
+`--host 0.0.0.0` (or any other non-loopback address) makes the server reachable from other machines.
+Scan sends whatever you paste to the server process; draft spends the server's own
+`ANTHROPIC_API_KEY`. On a shared instance, both need to know whose request they're handling — so the
+server refuses to start on a non-loopback host at all unless `--require-auth` is also given **and**
+at least one token is configured (copy `webapp/tokens.txt.example` to `webapp/tokens.txt` and add a
+real one, or set `FAIR_PRICE_TOKENS`). Register lookup, award search, the commodity index and
+`/api/health` never need a token — they only ever read data this repository already publishes openly
+(`gates/sensitive-info-gate.md`'s scope note explains why that's fine).
+
+```
+python webapp/server.py --host 0.0.0.0 --require-auth
+```
+A caller without a valid token gets a plain 401 from `/api/scan` and `/api/draft`; every other route
+answers normally. See `webapp/auth.py` for exactly how a token is checked, and `ARCHITECTURE.md` for
+why this exists and what it deliberately does not attempt yet (no real hosted-identity provider, no
+per-caller rate limiting, no dual-bot corpus split — none of that is built).
 
 ## The policy register is not a step you complete
 Earlier versions of this page had "Policy register" as a numbered section between the intake form and
@@ -113,12 +142,17 @@ meaning — it can miss an unusually-written citation and can flag an unrelated 
 human checks before trusting a draft; it doesn't replace reading `sources/register.csv`.
 
 ## What this is not
-- Not a hosted service, and not designed to become one without redesigning the privacy model first
-  (see the "should we build a website" discussion in the kit's history — the short version: a
-  *hosted* multi-tenant version means someone else's procurement data crosses a network to
-  infrastructure you control, which reopens `OPEN-QUESTIONS.md` #6-#8 in their hardest form; this
-  local-only version doesn't, because nothing here changes where the data goes versus using an AI
-  assistant directly).
+- Not a hosted service by default, and running one is still a deliberate, separate decision, not
+  a flag flipped in passing — `--host`/`--require-auth` make a shared instance *possible* without an
+  app rewrite (`ARCHITECTURE.md`), they don't make one exist. A *hosted* multi-tenant version means
+  someone else's inputs cross a network to infrastructure you control, which reopens
+  `OPEN-QUESTIONS.md` #6-#8 in their hardest form for the caller whose data it is; this still needs
+  thinking through per deployment, and nothing here decides it for you. The plain local default
+  doesn't raise that question at all, because nothing here changes where the data goes versus using
+  an AI assistant directly.
+- Still not a UI for the private corpus (`fair-price-corpus`) — that repo, if cloned, is read
+  directly by `SKILL.md`/an AI assistant, not through this webapp or any bot. See `ARCHITECTURE.md`'s
+  "dual-bot" section for why that's deferred, not forgotten.
 - Not a UI for the ingestion pipeline (`ingestion/`) — that still runs via the CLI tools or an AI
   assistant. Adding it here is future work, not started.
 - Not a replacement for the sensitive-information gate's human review step — a clean scan is not a
@@ -129,8 +163,11 @@ human checks before trusting a draft; it doesn't replace reading `sources/regist
   on error.
 - `server.py` — stdlib `http.server`, routes only, no logic of its own. Every route is wrapped so an
   unhandled exception becomes a clean JSON 500, not a dropped connection.
-- `engine.py` — the actual functions (scan, register, award search, citation check, drafting).
-  Imported and tested directly by `tools/test/test_webapp.py` without starting a server.
-  `tools/test/test_webapp_server.py` tests the HTTP layer itself (routing, malformed input, the
-  catch-all) against a real server on a throwaway port.
+- `auth.py` — caller resolution (`resolve_caller()`) for a shared instance; see `ARCHITECTURE.md`.
+  `tools/test/test_webapp_auth.py` tests it directly.
+- `tokens.txt.example` — copy to `tokens.txt` (gitignored) to configure a token roster.
+- `engine.py` — the actual functions (scan, register, award search, commodity index, citation check,
+  drafting). Imported and tested directly by `tools/test/test_webapp.py` without starting a server.
+  `tools/test/test_webapp_server.py` tests the HTTP layer itself (routing, malformed input, auth
+  gating, the catch-all) against a real server on a throwaway port.
 - `static/` — plain HTML/CSS/vanilla JS, no build step, no CDN dependency.

@@ -1,0 +1,10 @@
+# Per-caller token roster for webapp/auth.py -- copy this file to tokens.txt (gitignored, never
+# committed) and replace the example lines. One "token,label" per line; '#' starts a comment.
+#
+# Generate a real token with, e.g.:  python -c "import secrets; print(secrets.token_urlsafe(32))"
+# The label is shown back to you in server logs and API error messages -- use a name, not a secret.
+#
+# Only matters when the server is started with --require-auth (or FAIR_PRICE_REQUIRE_AUTH=1); the
+# default local workflow (webapp/README.md, 127.0.0.1, single user) ignores this file entirely.
+#
+# example-token-replace-me,operator-name

@@ -10,6 +10,7 @@ import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "webapp"))
+import auth  # noqa: E402
 import engine  # noqa: E402
 import server  # noqa: E402
 
@@ -41,9 +42,9 @@ def _get(path):
         return e.code, json.loads(e.read().decode("utf-8"))
 
 
-def _post(path, body_bytes):
-    req = urllib.request.Request(BASE + path, data=body_bytes, method="POST",
-                                  headers={"Content-Type": "application/json"})
+def _post(path, body_bytes, headers=None):
+    all_headers = {"Content-Type": "application/json", **(headers or {})}
+    req = urllib.request.Request(BASE + path, data=body_bytes, method="POST", headers=all_headers)
     try:
         with urllib.request.urlopen(req, timeout=5) as resp:
             return resp.status, json.loads(resp.read().decode("utf-8"))
@@ -124,6 +125,61 @@ def test_draft_route_passes_truncated_through_to_the_response(monkeypatch):
     finally:
         monkeypatch.undo()
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+
+def test_commodity_index_search_route():
+    status, data = _get("/api/commodity-index?q=softwood+lumber")
+    assert status == 200
+    assert data["products"]
+
+
+def test_commodity_index_adjust_route_needs_a_real_vector():
+    status, data = _get("/api/commodity-index?vector=v-does-not-exist&from=2020-01&to=2020-02")
+    assert status == 400
+    assert "error" in data
+
+
+def test_scan_and_draft_are_open_when_auth_not_required():
+    # The default -- FAIR_PRICE_REQUIRE_AUTH unset -- matches the existing local, single-user
+    # workflow: no token needed for any route, exactly as before this feature existed.
+    status, _ = _post("/api/scan", json.dumps({"text": "hello"}).encode("utf-8"))
+    assert status == 200
+
+
+def test_scan_is_refused_without_a_token_when_auth_is_required(monkeypatch):
+    monkeypatch.setenv("FAIR_PRICE_REQUIRE_AUTH", "1")
+    try:
+        status, data = _post("/api/scan", json.dumps({"text": "hello"}).encode("utf-8"))
+        assert status == 401
+        assert "error" in data
+    finally:
+        monkeypatch.delenv("FAIR_PRICE_REQUIRE_AUTH", raising=False)
+
+
+def test_scan_succeeds_with_a_valid_token_when_auth_is_required(monkeypatch):
+    monkeypatch.setenv("FAIR_PRICE_REQUIRE_AUTH", "1")
+    monkeypatch.setenv("FAIR_PRICE_TOKENS", "test-token-123:tester")
+    try:
+        status, data = _post("/api/scan", json.dumps({"text": "hello"}).encode("utf-8"),
+                              headers={"Authorization": "Bearer test-token-123"})
+        assert status == 200
+        assert data["clean"] is True
+    finally:
+        monkeypatch.delenv("FAIR_PRICE_REQUIRE_AUTH", raising=False)
+        monkeypatch.delenv("FAIR_PRICE_TOKENS", raising=False)
+
+
+def test_register_and_awards_and_commodity_index_stay_open_when_auth_is_required(monkeypatch):
+    # These read data this repo already publishes openly -- gates/sensitive-info-gate.md's scope
+    # note -- so they must never start requiring a caller identity just because auth is turned on
+    # for the routes that actually touch one (scan, draft).
+    monkeypatch.setenv("FAIR_PRICE_REQUIRE_AUTH", "1")
+    try:
+        for path in ("/api/register", "/api/awards", "/api/commodity-index?q=lumber"):
+            status, _ = _get(path)
+            assert status == 200, path
+    finally:
+        monkeypatch.delenv("FAIR_PRICE_REQUIRE_AUTH", raising=False)
 
 
 def test_unexpected_internal_error_is_a_clean_500_not_a_hang(monkeypatch):
