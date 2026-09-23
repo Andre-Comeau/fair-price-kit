@@ -55,6 +55,7 @@ It sits beside this kit as a sibling folder (`../fair-price-corpus`); if it isn'
 2. The requirement: what is bought, quantity, period, competitive or non-competitive, any exception invoked.
 3. The price: amount, basis of payment (fixed, T&M, rates), taxes in/out.
 4. Price evidence: competing bids, prior contracts, catalogue/market prices, rate benchmarks, cost breakdown. Use rows from `data/comparables.csv`, figures-approved records from `fair-price-corpus` (see above) and, under the rules above, `data/canadabuys-awards-ncr-construction.csv` when relevant. TBS/organizational policy (`sources/register.csv`) is not price evidence — keep it out of this step; it belongs in step 2 of "Steps" below, as the criteria the price is judged against, not as a comparable itself.
+5. Value factors beyond unit price, **if the operator raises any** — never prompt for these as if they're always expected, and never infer one the operator didn't state: urgency or timeline constraints, a cost avoided by acting now (e.g. escalating damage, a deferred-approval delay), lifecycle-cost implications, or risk being managed. A price that looks high (or low) against step 4's comparisons alone is not automatically unreasonable (or reasonable) — see "Steps" below for how this is used, and note there is no obligation to find one: if the operator gives none, step 4's comparison stands on its own.
 
 Not collected here: who holds delegated authority to approve this price. That determination is assumed to be verified elsewhere in the organization's own approval process (a DOA matrix, an approval workflow, a signing officer's own check) — this draft supports the price being fair and reasonable, it does not establish who is authorized to sign for it. If that check turns out not to exist elsewhere for a given organization, it needs adding back here; don't assume it silently.
 
@@ -62,9 +63,13 @@ Not collected here: who holds delegated authority to approve this price. That de
 1. Restate the requirement and procurement approach in 2-3 sentences.
 2. Identify which provisions apply, **only from `sources/register.csv`**. Cite by `id` and provision number. Rows marked UNVERIFIED must not be cited as requirements; list them under "to confirm".
 3. Build the price analysis: list each comparison, its source and date, the unit basis, and any adjustment (inflation, volume, scope). Show arithmetic.
-4. State the conclusion in one sentence and the reasoning that leads to it. Say plainly where evidence is thin.
-5. List documentation the contract file should hold (compare against register rows for contract-file records, e.g. TBS-DMP-4.10.1.x).
-6. Output using `templates/justification-template.md`. End with a **Gaps and assumptions** list.
+4. Weigh unit price against total value. This is the step the register's "best value" language (`TBS-DMP-3.1`) actually cashes out into — it is explicitly broader than unit price: full life-cycle costs (`TBS-DMP-3.2.2`, `TBS-DMP-4.2.1`, `TBS-DMP-4.3.4.10`), risk management and financial assessment (`TBS-DMP-4.10.1.5`), and, separately, a genuine emergency as its own formally-approved basis for departing from the normal process (`TBS-DMP-4.6.3`) — not an after-the-fact excuse for skipping this analysis.
+   - **Only do this using value factors the operator actually supplied** (step 5 of "Inputs to collect"). If none were supplied, write "Not applicable: no value factors beyond unit price were supplied" and move on — do not invent urgency, a deferred-approval cost, or a lifecycle saving to rescue a weak price comparison.
+   - When factors were supplied: name each one, cite the register provision it maps to, and reason concretely about how it changes (or doesn't change) step 3's comparison — a stated timeline pressure or an avoided escalation cost can support a price that looks high against a market comparison alone; state the mechanism, don't just assert "best value" as a conclusion-shaped label.
+   - When step 3's comparison is itself thin, absent, or unfavourable **and** real value factors exist, say explicitly that the case rests on total-value reasoning rather than market-price evidence — that is a materially different, and generally weaker, kind of evidence, and the draft must say so rather than blur the two together.
+5. State the conclusion in one sentence and the reasoning that leads to it, and say plainly **which basis it actually rests on** — market-price comparison (step 3), total-value reasoning (step 4), or both. Say plainly where evidence is thin, and don't let a total-value narrative paper over an absent or unfavourable price comparison.
+6. List documentation the contract file should hold (compare against register rows for contract-file records, e.g. TBS-DMP-4.10.1.x).
+7. Output using `templates/justification-template.md`. End with a **Gaps and assumptions** list.
 
 ## Constraints
 - Every policy citation must exist in `sources/register.csv`. If a needed provision is not there, write "provision not in register: needs lookup", not a guess.
@@ -80,4 +85,5 @@ Not collected here: who holds delegated authority to approve this price. That de
 - Do not repeat flagged values in your warning, and do not try to re-identify anything that has been masked.
 - Do not use a flagged award row as a price comparable, and do not treat a supply arrangement, standing offer or construction-management total as comparable to a single-trade contract.
 - Do not use a `fair-price-corpus` record as a price comparable unless `review.figures_approved` is `true` and the specific `pay_items` entry carries `unit_price_cad`, `price_date` and `price_basis` — an unapproved record is background only.
+- Do not invent a value factor (urgency, a deferred-approval or escalation cost, a lifecycle saving, a risk being managed) the operator didn't state, to make a weak price comparison look better. If step 3's comparison is thin or unfavourable and the operator supplied no value factors, say the price cannot be confirmed as fair and reasonable on the evidence given — that is a correct, useful answer, not a failure.
 - Do not give legal advice; flag legal questions for the appropriate contact.

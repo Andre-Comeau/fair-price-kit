@@ -19,16 +19,25 @@ To confirm (unverified or missing): <list>
 
 Arithmetic: <show it>
 
-## 4. Conclusion
-<one sentence: is the price fair and reasonable, and why. State confidence and limits of the evidence.>
+## 4. Value beyond unit price
+<Only using value factors the operator actually supplied -- urgency/timeline, a cost avoided by acting
+now, lifecycle-cost implications, risk being managed. If none were supplied: "Not applicable: no value
+factors beyond unit price were supplied." Otherwise: name each factor, the register provision it maps
+to (TBS-DMP-3.1, 3.2.2, 4.2.1, 4.3.4.10, 4.10.1.5, 4.6.3 as applicable), and how it concretely changes
+the reading of Section 3 -- never invent a factor to rescue a weak comparison.>
 
-## 5. Contract-file documentation to hold
+## 5. Conclusion
+<one sentence: is the price fair and reasonable, and why. Name which basis it rests on -- market-price
+comparison (Section 3), total-value reasoning (Section 4), or both. State confidence and limits of the
+evidence.>
+
+## 6. Contract-file documentation to hold
 - [ ] <item, cross-referenced to register id>
 
-## 6. Gaps and assumptions
+## 7. Gaps and assumptions
 - <list>
 
-## 7. Sources and attribution
+## 8. Sources and attribution
 - Policy: <register ids used>. Data: <register id + contract numbers + retrieval date, and `comparables.csv` row ids>.
 - If public award data were used, keep: "Contains information licensed under the Open Government Licence – Canada."
 - Figures supplied by the requester are marked "user-supplied". Nothing here has been approved.
