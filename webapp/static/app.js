@@ -189,9 +189,16 @@ document.getElementById("commodity-compute-btn").addEventListener("click", async
 // draft continues the same conversation instead of starting a fresh, context-free one.
 let conversationMessages = null;
 
+function renderCitationList(citations) {
+  const used = citations.used.map(id => `<span class="used">${escapeHtml(id)}</span>`).join("");
+  const unknown = citations.unknown.map(id => `<span class="unknown">${escapeHtml(id)}</span>`).join("");
+  return `<div class="citation-list">
+      ${used ? `<strong>Citations found in the register:</strong> ${used}` : ""}
+      ${unknown ? `<br><strong>⚠ Not found in the register — check before trusting:</strong> ${unknown}` : ""}
+    </div>`;
+}
+
 function renderDraftTurn(result, label) {
-  const used = result.citations.used.map(id => `<span class="used">${escapeHtml(id)}</span>`).join("");
-  const unknown = result.citations.unknown.map(id => `<span class="unknown">${escapeHtml(id)}</span>`).join("");
   if (typeof result.estimated_cost_usd === "number") sessionSpendUsd += result.estimated_cost_usd;
   const cost = typeof result.estimated_cost_usd === "number"
     ? `$${result.estimated_cost_usd.toFixed(4)} this call (${result.usage.input_tokens} in / ${result.usage.cache_read_input_tokens || 0} cached / ${result.usage.output_tokens} out) — $${sessionSpendUsd.toFixed(4)} so far this session`
@@ -206,25 +213,26 @@ function renderDraftTurn(result, label) {
       ${label ? `<p class="hint"><strong>${escapeHtml(label)}</strong></p>` : ""}
       <div class="finding ok">${cost}</div>
       ${truncatedWarning}
-      <div class="citation-list">
-        ${used ? `<strong>Citations found in the register:</strong> ${used}` : ""}
-        ${unknown ? `<br><strong>⚠ Not found in the register — check before trusting:</strong> ${unknown}` : ""}
-      </div>
+      ${renderCitationList(result.citations)}
       <pre>${escapeHtml(result.draft)}</pre>
     </div>`;
 }
 
-document.getElementById("draft-btn").addEventListener("click", async () => {
-  const box = document.getElementById("draft-result");
-  box.innerHTML = "<p class='hint'>Drafting… this is the one step that calls an LLM.</p>";
-  document.getElementById("draft-feedback").style.display = "none";
-  const inputs = {
+function gatherIntakeInputs() {
+  return {
     organization: document.getElementById("org").value,
     requirement: document.getElementById("requirement").value,
     price: document.getElementById("price").value,
     price_evidence: document.getElementById("evidence").value,
     value_factors: document.getElementById("value-factors").value,
   };
+}
+
+document.getElementById("draft-btn").addEventListener("click", async () => {
+  const box = document.getElementById("draft-result");
+  box.innerHTML = "<p class='hint'>Drafting… this is the one step that calls an LLM.</p>";
+  document.getElementById("draft-feedback").style.display = "none";
+  const inputs = gatherIntakeInputs();
   try {
     const result = await postJSON("/api/draft", inputs);
     conversationMessages = result.messages;
@@ -253,6 +261,51 @@ document.getElementById("feedback-btn").addEventListener("click", async () => {
     box.insertAdjacentHTML("beforeend", renderDraftTurn(result, `Your response: "${text}"`));
   } catch (e) {
     box.insertAdjacentHTML("beforeend", `<div class="finding warn">${escapeHtml(e.message)}</div>`);
+  }
+});
+
+// ---------- draft via an interactive assistant (Copilot or similar), no API key needed ----------
+
+document.getElementById("copilot-compose-btn").addEventListener("click", async () => {
+  const promptBox = document.getElementById("copilot-prompt-box");
+  const promptText = document.getElementById("copilot-prompt-text");
+  const status = document.getElementById("copilot-copy-status");
+  status.textContent = "";
+  try {
+    const { prompt } = await postJSON("/api/copilot-prompt", gatherIntakeInputs());
+    promptText.value = prompt;
+    promptBox.style.display = "block";
+  } catch (e) {
+    promptBox.style.display = "block";
+    promptText.value = "";
+    status.textContent = e.message;
+  }
+});
+
+document.getElementById("copilot-copy-btn").addEventListener("click", async () => {
+  const promptText = document.getElementById("copilot-prompt-text");
+  const status = document.getElementById("copilot-copy-status");
+  try {
+    await navigator.clipboard.writeText(promptText.value);
+    status.textContent = "Copied.";
+  } catch (e) {
+    // Clipboard access can be blocked (permissions, non-secure context); the text is still
+    // selectable in the box either way, so this is a convenience failure, not a dead end.
+    promptText.select();
+    status.textContent = "Couldn't copy automatically — selected the text instead; copy it yourself.";
+  }
+});
+
+document.getElementById("copilot-check-btn").addEventListener("click", async () => {
+  const text = document.getElementById("copilot-response-text").value;
+  const box = document.getElementById("copilot-check-result");
+  if (!text.trim()) { box.innerHTML = "<div class='finding warn'>Paste a response to check first.</div>"; return; }
+  box.innerHTML = "<p class='hint'>Checking citations…</p>";
+  try {
+    const citations = await postJSON("/api/validate", { text });
+    box.innerHTML = renderCitationList(citations);
+  } catch (e) {
+    box.innerHTML = `<div class="finding warn">${escapeHtml(e.message)}</div>`;
   }
 });
 

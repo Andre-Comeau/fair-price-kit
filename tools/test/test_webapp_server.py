@@ -169,6 +169,37 @@ def test_scan_succeeds_with_a_valid_token_when_auth_is_required(monkeypatch):
         monkeypatch.delenv("FAIR_PRICE_TOKENS", raising=False)
 
 
+def test_copilot_prompt_route_works_without_any_api_key(monkeypatch):
+    # The whole point of this route: no ANTHROPIC_API_KEY needed at all.
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    status, data = _post("/api/copilot-prompt", json.dumps({"organization": "Test Org"}).encode("utf-8"))
+    assert status == 200
+    assert "Test Org" in data["prompt"]
+
+
+def test_copilot_prompt_is_refused_without_a_token_when_auth_is_required(monkeypatch):
+    monkeypatch.setenv("FAIR_PRICE_REQUIRE_AUTH", "1")
+    try:
+        status, data = _post("/api/copilot-prompt", json.dumps({"organization": "Test Org"}).encode("utf-8"))
+        assert status == 401
+        assert "error" in data
+    finally:
+        monkeypatch.delenv("FAIR_PRICE_REQUIRE_AUTH", raising=False)
+
+
+def test_copilot_prompt_succeeds_with_a_valid_token_when_auth_is_required(monkeypatch):
+    monkeypatch.setenv("FAIR_PRICE_REQUIRE_AUTH", "1")
+    monkeypatch.setenv("FAIR_PRICE_TOKENS", "test-token-123:tester")
+    try:
+        status, data = _post("/api/copilot-prompt", json.dumps({"organization": "Test Org"}).encode("utf-8"),
+                              headers={"Authorization": "Bearer test-token-123"})
+        assert status == 200
+        assert "Test Org" in data["prompt"]
+    finally:
+        monkeypatch.delenv("FAIR_PRICE_REQUIRE_AUTH", raising=False)
+        monkeypatch.delenv("FAIR_PRICE_TOKENS", raising=False)
+
+
 def test_register_and_awards_and_commodity_index_stay_open_when_auth_is_required(monkeypatch):
     # These read data this repo already publishes openly -- gates/sensitive-info-gate.md's scope
     # note -- so they must never start requiring a caller identity just because auth is turned on

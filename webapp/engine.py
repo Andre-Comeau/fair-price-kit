@@ -240,6 +240,20 @@ def build_user_message(inputs: dict) -> str:
     )
 
 
+def build_copilot_prompt(inputs: dict) -> str:
+    """The same fixed context and per-call inputs draft_with_llm() sends the Anthropic API,
+    combined into one plain-text prompt instead -- for an interactive assistant with no completions
+    API this webapp can call directly (Microsoft 365 Copilot's chat surfaces are the motivating
+    case; see ARCHITECTURE.md and webapp/README.md's "Drafting without an API" section). Reuses
+    build_system_blocks()/build_user_message() so the two paths can never drift apart. Touches no
+    network itself -- the operator pastes the result into their own already-approved assistant and
+    pastes the reply back for validate_citations() to check, the same trust boundary as using that
+    assistant directly (same pattern as ingestion/COPILOT-MODE.md's paste-ready prompts)."""
+    system_text = build_system_blocks()[0]["text"]
+    user_text = build_user_message(inputs)
+    return f"{system_text}\n\n---\n\n{user_text}"
+
+
 def draft_with_llm(inputs: dict = None, messages: list = None, model: str = "claude-sonnet-5",
                     max_cost_usd: float = 0.25) -> dict:
     """Calls the Anthropic Messages API with the operator's own ANTHROPIC_API_KEY (read from the

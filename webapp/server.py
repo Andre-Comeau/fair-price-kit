@@ -168,6 +168,11 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/api/validate":
             return self._json(200, engine.validate_citations(body.get("text", "")))
 
+        if parsed.path == "/api/copilot-prompt":
+            if self._require_caller() is None:
+                return
+            return self._json(200, {"prompt": engine.build_copilot_prompt(body)})
+
         if parsed.path == "/api/draft":
             if self._require_caller() is None:
                 return

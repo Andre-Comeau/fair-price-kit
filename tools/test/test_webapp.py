@@ -300,6 +300,29 @@ def test_commodity_index_adjustment_rejects_a_month_with_no_published_value():
         assert "no published index value" in str(e)
 
 
+def test_build_copilot_prompt_combines_fixed_context_and_inputs():
+    prompt = engine.build_copilot_prompt({"organization": "Test Org", "price": "$1,000"})
+    # the fixed context (SKILL.md + register + template) must be present, same as draft_with_llm() sends
+    assert "fair-price-justification" in prompt or "Fair-price justification" in prompt
+    assert "sources/register.csv" in prompt or "TBS-DMP-3.1" in prompt
+    # the per-call inputs must be present too, and marked user-supplied same as the API path
+    assert "Test Org" in prompt
+    assert "$1,000" in prompt
+    assert "user-supplied" in prompt
+
+
+def test_build_copilot_prompt_touches_no_network():
+    # No API key needed at all -- this is the whole point of the interactive path.
+    import os
+    had = os.environ.pop("ANTHROPIC_API_KEY", None)
+    try:
+        prompt = engine.build_copilot_prompt({"requirement": "roof repair"})
+        assert "roof repair" in prompt
+    finally:
+        if had is not None:
+            os.environ["ANTHROPIC_API_KEY"] = had
+
+
 def main():
     tests = [v for k, v in globals().items() if k.startswith("test_")]
     failed = 0

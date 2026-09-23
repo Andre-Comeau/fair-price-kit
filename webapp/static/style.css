@@ -72,6 +72,10 @@ button:hover { opacity: 0.88; }
 .draft-turn:first-child { border-top: none; margin-top: 0; padding-top: 0; }
 .redact-btn, .keep-btn { font-size: 0.78rem; padding: 2px 8px; margin-left: 6px; background: #fff; color: var(--warn); border-color: var(--warn); }
 #draft-feedback { margin-top: 14px; }
+#copilot-mode { margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--line); }
+#copilot-mode textarea { width: 100%; font-family: inherit; font-size: 0.85rem; padding: 7px 9px; border: 1px solid var(--line); border-radius: 5px; margin-top: 4px; }
+#copilot-prompt-box { margin: 8px 0 14px; }
+#copilot-copy-status { margin-left: 8px; }
 .finding { padding: 6px 9px; border-radius: 5px; margin-bottom: 4px; }
 .finding.warn { background: var(--warn-bg); color: var(--warn); }
 .finding.ok { background: var(--ok-bg); color: var(--accent); }

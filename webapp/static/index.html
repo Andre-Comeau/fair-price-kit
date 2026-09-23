@@ -86,6 +86,25 @@
       </label>
       <button type="button" id="feedback-btn">Send response, get revised draft</button>
     </div>
+
+    <div id="copilot-mode">
+      <p class="hint"><strong>Or draft without an API key</strong> — for Microsoft Copilot or any other
+        interactive AI chat your organization allows, that has no completions API this page can call
+        directly. Builds the same prompt from the fields above; paste it into your assistant yourself,
+        then paste the reply back below to check its citations. Your assistant keeps the conversation,
+        not this page — for a follow-up, keep chatting there and re-check each reply here if you want.</p>
+      <button type="button" id="copilot-compose-btn">Compose prompt</button>
+      <div id="copilot-prompt-box" style="display:none;">
+        <textarea id="copilot-prompt-text" rows="8" readonly></textarea>
+        <button type="button" id="copilot-copy-btn">Copy to clipboard</button>
+        <span id="copilot-copy-status" class="hint"></span>
+      </div>
+      <label>Paste your assistant's response here
+        <textarea id="copilot-response-text" rows="8"></textarea>
+      </label>
+      <button type="button" id="copilot-check-btn">Check citations</button>
+      <div id="copilot-check-result" class="result"></div>
+    </div>
   </section>
 
   <details id="register-details">

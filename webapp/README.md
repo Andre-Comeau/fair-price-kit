@@ -111,6 +111,35 @@ Each reply is its own `/api/draft` call — cost and citations are reported per 
 resends the whole conversation so far, so a long back-and-forth costs more per turn than the first
 draft did (still cached on the fixed context; only the growing conversation is uncached).
 
+## Drafting without an API key (Microsoft Copilot or similar)
+`/api/draft` needs `ANTHROPIC_API_KEY` because it calls Anthropic's Messages API directly. If your
+organization gives you Microsoft 365 Copilot instead — chat in Word, Teams or the Copilot web app —
+that's a different kind of AI access: it has no general-purpose completions API this webapp can call
+the way it calls Anthropic's, so there's nothing for `/api/draft` to point at. The "Or draft without
+an API key" section under Draft is for exactly this case, and works with any interactive AI chat your
+organization allows, not Copilot specifically.
+
+It does the same job a different way:
+1. **Compose prompt** builds the identical fixed context (`SKILL.md` + the whole register + the
+   template) and your intake-form inputs that `/api/draft` would send — `engine.build_copilot_prompt()`
+   reuses the exact same `build_system_blocks()`/`build_user_message()` functions, so the two paths
+   can't drift apart — combined into one plain-text block, since a chat window has no separate
+   system/user split the way an API call does.
+2. Copy it (or select the text yourself if clipboard access is blocked) and paste it into your
+   assistant.
+3. Paste the reply back into "Paste your assistant's response here" and **Check citations** — this
+   runs the same `validate_citations()` check `/api/draft` already runs automatically, flagging any
+   citation-shaped token that isn't actually in `sources/register.csv`.
+
+What this does *not* do: track cost (there is none to the account this webapp uses), continue a
+conversation on your behalf (your assistant keeps its own chat history — for a follow-up, keep
+chatting there and paste each new reply back here if you want it re-checked), or resolve
+`OPEN-QUESTIONS.md` #7 (what Copilot is actually approved for). It sidesteps that question rather
+than answering it: you're the one submitting the prompt and reading the reply, the same trust
+boundary as using your assistant directly, same as `ingestion/COPILOT-MODE.md`'s paste-ready prompts
+for the ingestion pipeline. A real API integration (Azure OpenAI, a custom Copilot Studio agent) would
+still need that question answered, plus Entra ID app registration and IT approval — out of scope here.
+
 ## What a draft actually costs
 `SKILL.md` + the whole register + the template (~4,600 tokens) go into a cached `system` block on
 every call, since they're identical regardless of what you ask — after the first call in a 5-minute
@@ -167,7 +196,7 @@ human checks before trusting a draft; it doesn't replace reading `sources/regist
   `tools/test/test_webapp_auth.py` tests it directly.
 - `tokens.txt.example` — copy to `tokens.txt` (gitignored) to configure a token roster.
 - `engine.py` — the actual functions (scan, register, award search, commodity index, citation check,
-  drafting). Imported and tested directly by `tools/test/test_webapp.py` without starting a server.
+  drafting, composing a Copilot-ready prompt). Imported and tested directly by `tools/test/test_webapp.py` without starting a server.
   `tools/test/test_webapp_server.py` tests the HTTP layer itself (routing, malformed input, auth
   gating, the catch-all) against a real server on a throwaway port.
 - `static/` — plain HTML/CSS/vanilla JS, no build step, no CDN dependency.
