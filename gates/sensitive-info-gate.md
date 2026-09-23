@@ -2,10 +2,17 @@
 
 Purpose: the user sanitizes first. This gate is the backstop for what slips through. It never replaces the user's own sanitization or their organization's rules on what may be shared.
 
+## Scope: raw project records, not already-published open data
+This gate exists to catch identifying information leaking out of **private source material** (a real project's specs, drawings, change documents, or anything a user pastes or attaches from their own files) as it moves toward something shareable. It does not apply to data that was already public before this kit touched it.
+
+A row from `data/canadabuys-awards-ncr-construction.csv`, `data/statcan-ippi-construction.csv`, or any other file built from a cited open-government dataset carries its contract numbers, vendor names and dollar values **on purpose** — those are exactly what the Open Government Licence / Statistics Canada Open Licence already published, and exactly what makes the row usable as a citable comparable (`SKILL.md` requires citing the contract number). Redacting them would not add privacy; it would just make the row useless while adding nothing government.ca doesn't already show. The only redaction rule for a public-source file is the ordinary privacy one: drop actual personal information the source didn't intend to expose (named contracting officers, emails, phone numbers) even if it technically appears in the raw feed — see `tools/canadabuys_filter.py`'s own docstring for a worked example of that distinction.
+
+If a file's provenance is a cited, licensed, already-public dataset, this gate does not apply to its identifiers. If a file's provenance is anything else — a real project's own documents, something a user pasted, an ingested spec or drawing — every rule below applies in full, including to contract and solicitation numbers.
+
 ## When it runs
 - **Input gate:** every time the user pastes text, attaches a file, or describes a real file. Run before analysing.
 - **Output gate:** before writing to any file that could leave the private workspace (anything in a git repo, a shared folder, an email, a message, a published page), and again before any commit or push.
-- **Data gate:** before adding any row to `data/comparables.csv`.
+- **Data gate:** before adding any row to `data/comparables.csv`, unless the row's `source_reference` is a cited open-government dataset already covered by the scope note above.
 
 ## What to look for
 Direct identifiers:
