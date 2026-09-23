@@ -137,6 +137,53 @@ document.getElementById("award-search-btn").addEventListener("click", async () =
   }
 });
 
+// ---------- commodity price index ----------
+
+let selectedCommodityVector = null;
+
+document.getElementById("commodity-search-btn").addEventListener("click", async () => {
+  const q = document.getElementById("commodity-query").value;
+  const box = document.getElementById("commodity-products");
+  box.innerHTML = "<p class='hint'>Searching…</p>";
+  try {
+    const { products } = await getJSON(`/api/commodity-index?q=${encodeURIComponent(q)}&limit=25`);
+    if (!products.length) { box.innerHTML = "<p class='hint'>No matches.</p>"; return; }
+    const body = products.map(p => `
+      <tr>
+        <td>${escapeHtml(p.napcs_group)}</td>
+        <td>${escapeHtml(p.product)}</td>
+        <td><button type="button" class="scan-btn commodity-pick-btn" data-vector="${escapeHtml(p.vector)}" data-product="${escapeHtml(p.product)}">Use this series</button></td>
+      </tr>`).join("");
+    box.innerHTML = `<div class="scroll-table"><table><thead><tr><th>group</th><th>product</th><th></th></tr></thead><tbody>${body}</tbody></table></div>`;
+    box.querySelectorAll(".commodity-pick-btn").forEach(b => b.addEventListener("click", () => {
+      selectedCommodityVector = b.dataset.vector;
+      document.getElementById("commodity-adjust").style.display = "block";
+      document.getElementById("commodity-result").innerHTML =
+        `<p class="hint">Selected: ${escapeHtml(b.dataset.product)}</p>`;
+    }));
+  } catch (e) {
+    box.innerHTML = `<div class="finding warn">${escapeHtml(e.message)}</div>`;
+  }
+});
+
+document.getElementById("commodity-compute-btn").addEventListener("click", async () => {
+  const box = document.getElementById("commodity-result");
+  if (!selectedCommodityVector) { box.innerHTML = "<div class='finding warn'>Pick a product first.</div>"; return; }
+  const from = document.getElementById("commodity-from").value.trim();
+  const to = document.getElementById("commodity-to").value.trim();
+  box.innerHTML = "<p class='hint'>Computing…</p>";
+  try {
+    const r = await getJSON(`/api/commodity-index?vector=${encodeURIComponent(selectedCommodityVector)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+    box.innerHTML = `<div class="finding ok">
+      ${escapeHtml(r.product)}<br>
+      ${escapeHtml(r.from_date)}: ${r.from_value} &rarr; ${escapeHtml(r.to_date)}: ${r.to_value}<br>
+      <strong>Adjustment factor: ${r.factor}</strong> (multiply a ${escapeHtml(r.from_date)} price by this to express it in ${escapeHtml(r.to_date)} materials-cost terms — materials movement only, not a full escalation)
+      </div>`;
+  } catch (e) {
+    box.innerHTML = `<div class="finding warn">${escapeHtml(e.message)}</div>`;
+  }
+});
+
 // ---------- draft ----------
 // conversationMessages holds the API's own "messages" array between calls, so a reply to the
 // draft continues the same conversation instead of starting a fresh, context-free one.

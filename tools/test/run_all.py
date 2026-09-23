@@ -11,9 +11,12 @@ TESTS = [
     ("scanner patterns", ["test_scanner.py"]),
     ("spec page-header sectioning", ["test_spec_headers.py"]),
     ("CanadaBuys filter", ["test_canadabuys_filter.py"]),
+    ("StatCan IPPI filter", ["test_statcan_ippi_filter.py"]),
+    ("OCDS export", ["test_ocds_export.py"]),
     ("Power Automate reference logic", ["flow_reference.py", "selftest"]),
     ("end-to-end pipeline", ["test_pipeline.py"]),
     ("webapp engine", ["test_webapp.py"]),
+    ("webapp auth", ["test_webapp_auth.py"]),
     ("webapp server", ["test_webapp_server.py"]),
 ]
 

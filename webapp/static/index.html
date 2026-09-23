@@ -48,8 +48,27 @@
     <div id="award-table" class="scroll-table"></div>
   </section>
 
+  <section id="commodity-index">
+    <h2>3. Commodity price index (materials inflation adjustment)</h2>
+    <p class="hint">Statistics Canada IPPI, filtered to construction-relevant commodity groups. This
+      is materials-cost movement, not a price — use it to scale a comparable from one date to
+      another, never cite an index value on its own. Read
+      <code>data/statcan-ippi-construction.README.md</code> before using a value.</p>
+    <p class="hint">
+      <input type="text" id="commodity-query" placeholder="search product, e.g. softwood lumber">
+      <button type="button" id="commodity-search-btn">Search</button>
+    </p>
+    <div id="commodity-products"></div>
+    <div id="commodity-adjust" style="display:none;">
+      <label>From date (YYYY-MM) <input type="text" id="commodity-from" placeholder="2023-01"></label>
+      <label>To date (YYYY-MM) <input type="text" id="commodity-to" placeholder="2026-08"></label>
+      <button type="button" id="commodity-compute-btn">Compute adjustment factor</button>
+      <div id="commodity-result" class="result"></div>
+    </div>
+  </section>
+
   <section id="draft">
-    <h2>3. Draft</h2>
+    <h2>4. Draft</h2>
     <div id="draft-disabled-banner" class="finding warn" style="display:none;">
       Drafting is disabled: <code>ANTHROPIC_API_KEY</code> is not set in the environment the server
       is running in. Every other feature above still works. See <code>webapp/README.md</code> to set
